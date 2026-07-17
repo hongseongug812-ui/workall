@@ -65,4 +65,31 @@ router.get("/me", requireAuth, (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
+router.patch("/me", requireAuth, (req, res) => {
+  const { name, department } = req.body || {};
+  if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
+    return res.status(400).json({ error: "이름을 입력하세요." });
+  }
+  const user = db.updateUserProfile(req.userId, { name, department });
+  if (!user) return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+  res.json({ user: publicUser(user) });
+});
+
+router.post("/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string") {
+    return res.status(400).json({ error: "현재 비밀번호와 새 비밀번호를 입력하세요." });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: "새 비밀번호는 8자 이상이어야 합니다." });
+  }
+  const user = db.findUserById(req.userId);
+  if (!user) return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) return res.status(401).json({ error: "현재 비밀번호가 올바르지 않습니다." });
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  db.updateUserPassword(req.userId, passwordHash);
+  res.json({ ok: true });
+});
+
 module.exports = { router, publicUser };

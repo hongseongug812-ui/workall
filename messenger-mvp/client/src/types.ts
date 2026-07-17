@@ -29,6 +29,7 @@ export interface Message {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  pinnedAt: string | null;
   replyCount: number;
   reactions: Reaction[];
 }
@@ -41,6 +42,14 @@ export interface Channel {
   createdAt: string;
   lastMessage: { content: string; senderId: string; createdAt: string } | null;
   unreadCount: number;
+  muted: boolean;
+}
+
+export type PresenceStatus = "online" | "away" | "dnd";
+
+export interface UserStatus {
+  status: PresenceStatus;
+  statusMessage: string | null;
 }
 
 export interface Attendance {

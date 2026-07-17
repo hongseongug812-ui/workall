@@ -78,6 +78,17 @@ conn.exec(`
   CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
 `);
 
+// CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
+// 기존 DB 파일에 대해서는 없는 컬럼만 골라 ALTER TABLE로 보강한다.
+function ensureColumn(table, column, definition) {
+  const columns = conn.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    conn.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+ensureColumn("channel_members", "muted", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("messages", "pinned_at", "TEXT");
+
 function id() {
   return crypto.randomUUID();
 }
@@ -130,13 +141,26 @@ function listUsers() {
   return conn.prepare("SELECT * FROM users ORDER BY created_at").all().map(serializeUserRow);
 }
 
+function updateUserProfile(userId, { name, department }) {
+  const user = findUserById(userId);
+  if (!user) return null;
+  const nextName = typeof name === "string" && name.trim() ? name.trim() : user.name;
+  const nextDept = typeof department === "string" ? department.trim() : user.department;
+  conn.prepare("UPDATE users SET name = ?, department = ? WHERE id = ?").run(nextName, nextDept, userId);
+  return findUserById(userId);
+}
+
+function updateUserPassword(userId, passwordHash) {
+  conn.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(passwordHash, userId);
+}
+
 // ---- Channels ----
 
 function serializeChannelRow(row) {
   const members = conn
-    .prepare("SELECT user_id, last_read_at FROM channel_members WHERE channel_id = ?")
+    .prepare("SELECT user_id, last_read_at, muted FROM channel_members WHERE channel_id = ?")
     .all(row.id)
-    .map((m) => ({ userId: m.user_id, lastReadAt: m.last_read_at }));
+    .map((m) => ({ userId: m.user_id, lastReadAt: m.last_read_at, muted: !!m.muted }));
   return {
     id: row.id,
     type: row.type,
@@ -231,6 +255,13 @@ function markRead(channelId, userId) {
   return { lastReadAt: now() };
 }
 
+function setMuted(channelId, userId, muted) {
+  const result = conn
+    .prepare("UPDATE channel_members SET muted = ? WHERE channel_id = ? AND user_id = ?")
+    .run(muted ? 1 : 0, channelId, userId);
+  return result.changes > 0;
+}
+
 // ---- Messages ----
 
 function serializeMessageRow(row, viewerId) {
@@ -271,6 +302,7 @@ function serializeMessageRow(row, viewerId) {
     createdAt: row.created_at,
     editedAt: row.edited_at,
     deletedAt: row.deleted_at,
+    pinnedAt: row.pinned_at,
     replyCount,
     reactions: [...reactionMap.values()],
   };
@@ -395,6 +427,23 @@ function toggleReaction(messageId, userId, emoji) {
   return getMessageById(messageId, userId);
 }
 
+function togglePin(messageId, userId) {
+  const row = conn.prepare("SELECT * FROM messages WHERE id = ?").get(messageId);
+  if (!row || row.deleted_at) return { error: "not_found" };
+  const nextPinnedAt = row.pinned_at ? null : now();
+  conn.prepare("UPDATE messages SET pinned_at = ? WHERE id = ?").run(nextPinnedAt, messageId);
+  return { message: getMessageById(messageId, userId) };
+}
+
+function listPinnedMessages(channelId, viewerId) {
+  const rows = conn
+    .prepare(
+      "SELECT * FROM messages WHERE channel_id = ? AND pinned_at IS NOT NULL AND deleted_at IS NULL ORDER BY pinned_at DESC"
+    )
+    .all(channelId);
+  return rows.map((r) => serializeMessageRow(r, viewerId));
+}
+
 function searchMessages(userId, query, { channelId } = {}) {
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -481,6 +530,8 @@ module.exports = {
   findUserById,
   createUser,
   listUsers,
+  updateUserProfile,
+  updateUserPassword,
   listChannelsForUser,
   findChannelById,
   findDmChannel,
@@ -489,6 +540,7 @@ module.exports = {
   addMembers,
   removeMember,
   markRead,
+  setMuted,
   listMessages,
   listThreadReplies,
   getMessageById,
@@ -498,6 +550,8 @@ module.exports = {
   editMessage,
   deleteMessage,
   toggleReaction,
+  togglePin,
+  listPinnedMessages,
   searchMessages,
   getAttendance,
   checkIn,

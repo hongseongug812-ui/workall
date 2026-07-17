@@ -1,10 +1,16 @@
 import { io, Socket } from "socket.io-client";
 import { API_BASE } from "./api";
-import type { Attachment, Message } from "./types";
+import type { Attachment, Message, PresenceStatus } from "./types";
 
 interface AckResponse {
   message?: Message;
   error?: string;
+}
+
+interface StatusEntry {
+  userId: string;
+  status: PresenceStatus;
+  statusMessage: string | null;
 }
 
 interface ServerToClientEvents {
@@ -12,10 +18,12 @@ interface ServerToClientEvents {
   "message:updated": (message: Message) => void;
   "typing": (payload: { channelId: string; userId: string; isTyping: boolean }) => void;
   "presence:update": (payload: { userId: string; online: boolean }) => void;
-  "presence:snapshot": (payload: { onlineUserIds: string[] }) => void;
+  "presence:snapshot": (payload: { onlineUserIds: string[]; statuses: StatusEntry[] }) => void;
+  "presence:statusUpdate": (payload: StatusEntry) => void;
   "channel:new": (payload: { channelId: string }) => void;
   "channel:updated": (payload: { channelId: string }) => void;
   "channel:left": (payload: { channelId: string }) => void;
+  "channel:pinnedChanged": (payload: { channelId: string }) => void;
   "attendance:updated": () => void;
 }
 
@@ -26,9 +34,14 @@ interface ClientToServerEvents {
   ) => void;
   "message:edit": (payload: { messageId: string; content: string }, ack: (res: AckResponse) => void) => void;
   "message:delete": (payload: { messageId: string }, ack: (res: AckResponse) => void) => void;
+  "message:pin": (payload: { messageId: string }, ack: (res: AckResponse) => void) => void;
   "reaction:toggle": (payload: { messageId: string; emoji: string }, ack: (res: AckResponse) => void) => void;
   "typing": (payload: { channelId: string; isTyping: boolean }) => void;
   "channel:read": (payload: { channelId: string }) => void;
+  "presence:setStatus": (
+    payload: { status: PresenceStatus; statusMessage: string | null },
+    ack: (res: { ok?: boolean; error?: string }) => void
+  ) => void;
 }
 
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;

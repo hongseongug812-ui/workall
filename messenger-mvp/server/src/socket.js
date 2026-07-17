@@ -7,6 +7,9 @@ let io = null;
 // userId -> Set<socketId>, lets one user have multiple open tabs/devices
 // while presence is still reported per-user, not per-connection.
 const onlineSockets = new Map();
+// userId -> { status: 'online'|'away'|'dnd', statusMessage: string|null }
+const userStatuses = new Map();
+const VALID_STATUSES = new Set(["online", "away", "dnd"]);
 
 function userRoom(userId) {
   return `user:${userId}`;
@@ -47,7 +50,22 @@ function initSocket(httpServer, corsOrigin) {
       io.emit("presence:update", { userId, online: true });
     }
 
-    socket.emit("presence:snapshot", { onlineUserIds: [...onlineSockets.keys()] });
+    if (!userStatuses.has(userId)) userStatuses.set(userId, { status: "online", statusMessage: null });
+
+    socket.emit("presence:snapshot", {
+      onlineUserIds: [...onlineSockets.keys()],
+      statuses: [...userStatuses.entries()].map(([uid, s]) => ({ userId: uid, ...s })),
+    });
+
+    socket.on("presence:setStatus", ({ status, statusMessage }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (!VALID_STATUSES.has(status)) return reply({ error: "잘못된 상태입니다." });
+      const message = typeof statusMessage === "string" ? statusMessage.trim().slice(0, 60) : null;
+      const entry = { status, statusMessage: message || null };
+      userStatuses.set(userId, entry);
+      io.emit("presence:statusUpdate", { userId, ...entry });
+      reply({ ok: true });
+    });
 
     socket.on("message:send", ({ channelId, content, parentMessageId, attachment }, ack) => {
       const reply = typeof ack === "function" ? ack : () => {};
@@ -130,12 +148,27 @@ function initSocket(httpServer, corsOrigin) {
       db.markRead(channelId, userId);
     });
 
+    socket.on("message:pin", ({ messageId }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (typeof messageId !== "string") return reply({ error: "잘못된 요청입니다." });
+      const message = db.getMessageById(messageId, userId);
+      if (!message) return reply({ error: "메시지를 찾을 수 없습니다." });
+      const channel = db.findChannelById(message.channelId);
+      if (!channel || !db.isMember(channel, userId)) return reply({ error: "권한이 없습니다." });
+      const result = db.togglePin(messageId, userId);
+      if (result.error) return reply({ error: "메시지를 찾을 수 없습니다." });
+      io.to(channelRoom(result.message.channelId)).emit("message:updated", result.message);
+      io.to(channelRoom(result.message.channelId)).emit("channel:pinnedChanged", { channelId: result.message.channelId });
+      reply({ message: result.message });
+    });
+
     socket.on("disconnect", () => {
       const sockets = onlineSockets.get(userId);
       if (!sockets) return;
       sockets.delete(socket.id);
       if (sockets.size === 0) {
         onlineSockets.delete(userId);
+        userStatuses.delete(userId);
         io.emit("presence:update", { userId, online: false });
       }
     });

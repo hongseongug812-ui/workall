@@ -1948,3 +1948,216 @@ textarea:focus-visible {
   color: var(--text);
   font-weight: 600;
 }
+
+/* ---- Presence status colors ---- */
+
+.presence-dot.status-online {
+  background: #34c759;
+}
+
+.presence-dot.status-away {
+  background: #f5a623;
+}
+
+.presence-dot.status-dnd {
+  background: #e5484d;
+}
+
+/* ---- Status picker (sidebar) ---- */
+
+.avatar-button {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.status-picker-wrap {
+  position: relative;
+}
+
+.status-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 140px;
+}
+
+.status-picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-picker-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.status-option:hover,
+.status-option.active {
+  background: var(--hover);
+}
+
+.status-message-input {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.status-message-save {
+  margin-top: 4px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---- Channel mute indicator ---- */
+
+.channel-muted-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ---- Pinned messages ---- */
+
+.pinned-bar {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  padding: 8px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.pinned-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pinned-item-sender {
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.pinned-item-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+/* ---- Profile modal ---- */
+
+.profile-modal {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.profile-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.profile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.profile-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.profile-section input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.profile-section button[type="submit"] {
+  align-self: flex-start;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.profile-section button[type="submit"]:disabled {
+  opacity: 0.6;
+}
+
+.profile-success {
+  color: #34c759;
+  font-size: 12px;
+  margin: 0;
+}

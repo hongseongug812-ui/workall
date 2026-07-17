@@ -41,6 +41,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
   me: () => request<{ user: User }>("/api/auth/me"),
+  updateProfile: (data: { name?: string; department?: string }) =>
+    request<{ user: User }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<{ ok: boolean }>("/api/auth/change-password", { method: "POST", body: JSON.stringify(data) }),
   listUsers: () => request<{ users: User[] }>("/api/users"),
   listChannels: () => request<{ channels: Channel[] }>("/api/channels"),
   openDm: (otherUserId: string) =>
@@ -70,6 +74,13 @@ export const api = {
     request<{ parent: Message; replies: Message[] }>(
       `/api/channels/${channelId}/messages/${messageId}/thread`
     ),
+  getPinnedMessages: (channelId: string) =>
+    request<{ messages: Message[] }>(`/api/channels/${channelId}/pinned`),
+  setMuted: (channelId: string, muted: boolean) =>
+    request<{ muted: boolean }>(`/api/channels/${channelId}/mute`, {
+      method: "POST",
+      body: JSON.stringify({ muted }),
+    }),
   search: (query: string, channelId?: string) => {
     const params = new URLSearchParams({ q: query });
     if (channelId) params.set("channelId", channelId);

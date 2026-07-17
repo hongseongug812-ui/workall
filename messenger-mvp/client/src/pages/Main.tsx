@@ -2,17 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
 import { getSocket } from "../socket";
-import type { Attachment, Channel, Message, User } from "../types";
+import type { Attachment, Channel, Message, PresenceStatus, User, UserStatus } from "../types";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import NewGroupModal from "../components/NewGroupModal";
 import SearchPanel from "../components/SearchPanel";
 import AttendancePanel from "../components/AttendancePanel";
+import ProfileModal from "../components/ProfileModal";
 
 const MESSAGE_PAGE_SIZE = 50;
+const DEFAULT_STATUS: UserStatus = { status: "online", statusMessage: null };
 
 export default function Main() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
@@ -26,6 +28,9 @@ export default function Main() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [statusesByUser, setStatusesByUser] = useState<Record<string, UserStatus>>({});
+  const [pinnedByChannel, setPinnedByChannel] = useState<Record<string, Message[]>>({});
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
@@ -83,7 +88,7 @@ export default function Main() {
       if (isActiveAndFocused) return;
 
       const channel = channelsRef.current.find((c) => c.id === message.channelId);
-      if (!channel) return;
+      if (!channel || channel.muted) return;
       const sender = channel.members.find((m) => m.id === message.senderId);
       const title = channel.type === "group" ? `${channel.name} · ${sender?.name || "알 수 없음"}` : sender?.name || channel.name;
       const body = message.content || (message.attachment ? `[파일] ${message.attachment.name}` : "");
@@ -100,7 +105,10 @@ export default function Main() {
     if (!user) return;
     const socket = getSocket();
 
-    socket.on("presence:snapshot", ({ onlineUserIds: ids }) => setOnlineUserIds(new Set(ids)));
+    socket.on("presence:snapshot", ({ onlineUserIds: ids, statuses }) => {
+      setOnlineUserIds(new Set(ids));
+      setStatusesByUser(Object.fromEntries(statuses.map((s) => [s.userId, s])));
+    });
     socket.on("presence:update", ({ userId, online }) => {
       setOnlineUserIds((prev) => {
         const next = new Set(prev);
@@ -108,6 +116,9 @@ export default function Main() {
         else next.delete(userId);
         return next;
       });
+    });
+    socket.on("presence:statusUpdate", ({ userId, status, statusMessage }) => {
+      setStatusesByUser((prev) => ({ ...prev, [userId]: { status, statusMessage } }));
     });
 
     socket.on("message:new", (message) => {
@@ -190,15 +201,23 @@ export default function Main() {
       }
     });
 
+    socket.on("channel:pinnedChanged", ({ channelId }) => {
+      api.getPinnedMessages(channelId).then(({ messages }) => {
+        setPinnedByChannel((prev) => ({ ...prev, [channelId]: messages }));
+      });
+    });
+
     return () => {
       socket.off("presence:snapshot");
       socket.off("presence:update");
+      socket.off("presence:statusUpdate");
       socket.off("message:new");
       socket.off("message:updated", patchMessage);
       socket.off("typing");
       socket.off("channel:new");
       socket.off("channel:updated");
       socket.off("channel:left");
+      socket.off("channel:pinnedChanged");
     };
   }, [user, refreshChannels, patchMessage, notifyIfBackground]);
 
@@ -211,11 +230,16 @@ export default function Main() {
         setMessagesByChannel((prev) => ({ ...prev, [channelId]: messages }));
         setHasMoreByChannel((prev) => ({ ...prev, [channelId]: messages.length >= MESSAGE_PAGE_SIZE }));
       }
+      if (!pinnedByChannel[channelId]) {
+        api.getPinnedMessages(channelId).then(({ messages }) => {
+          setPinnedByChannel((prev) => ({ ...prev, [channelId]: messages }));
+        });
+      }
       setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c)));
       api.markRead(channelId).catch(() => {});
       getSocket().emit("channel:read", { channelId });
     },
-    [messagesByChannel]
+    [messagesByChannel, pinnedByChannel]
   );
 
   const loadMoreMessages = useCallback(async () => {
@@ -291,6 +315,21 @@ export default function Main() {
     getSocket().emit("reaction:toggle", { messageId, emoji }, () => {});
   }, []);
 
+  const togglePin = useCallback((messageId: string) => {
+    getSocket().emit("message:pin", { messageId }, () => {});
+  }, []);
+
+  const setChannelMuted = useCallback(async (channelId: string, muted: boolean) => {
+    await api.setMuted(channelId, muted);
+    setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, muted } : c)));
+  }, []);
+
+  const changeStatus = useCallback((status: PresenceStatus, statusMessage: string | null) => {
+    if (!user) return;
+    setStatusesByUser((prev) => ({ ...prev, [user.id]: { status, statusMessage } }));
+    getSocket().emit("presence:setStatus", { status, statusMessage }, () => {});
+  }, [user]);
+
   const openThread = useCallback(
     async (messageId: string) => {
       setActiveThreadId(messageId);
@@ -347,16 +386,21 @@ export default function Main() {
         onNewGroup={() => setShowNewGroup(true)}
         onOpenSearch={() => setShowSearch(true)}
         onOpenAttendance={() => setShowAttendance(true)}
+        onOpenProfile={() => setShowProfile(true)}
         onLogout={logout}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((v) => !v)}
+        myStatus={statusesByUser[user.id] || DEFAULT_STATUS}
+        onChangeStatus={changeStatus}
       />
       <ChatWindow
         currentUser={user}
         channel={activeChannel}
         users={users}
         messages={activeChannel ? messagesByChannel[activeChannel.id] || [] : []}
+        pinnedMessages={activeChannel ? pinnedByChannel[activeChannel.id] || [] : []}
         onlineUserIds={onlineUserIds}
+        statusesByUser={statusesByUser}
         typingUserIds={activeChannel ? typingUsersByChannel[activeChannel.id] || new Set() : new Set()}
         hasMoreMessages={activeChannel ? !!hasMoreByChannel[activeChannel.id] : false}
         loadingMoreMessages={loadingMore}
@@ -365,12 +409,14 @@ export default function Main() {
         onEdit={editMessage}
         onDelete={deleteMessage}
         onReact={toggleReaction}
+        onPin={togglePin}
         onOpenThread={openThread}
         activeThreadParent={activeThreadParent}
         threadReplies={activeThreadId ? threadRepliesByParent[activeThreadId] || [] : []}
         onCloseThread={() => setActiveThreadId(null)}
         onAddMembers={addMembersToChannel}
         onLeaveChannel={leaveChannel}
+        onSetMuted={setChannelMuted}
       />
       {showNewGroup && (
         <NewGroupModal users={users} onCancel={() => setShowNewGroup(false)} onCreate={handleCreateGroup} />
@@ -384,6 +430,9 @@ export default function Main() {
         />
       )}
       {showAttendance && <AttendancePanel currentUser={user} onClose={() => setShowAttendance(false)} />}
+      {showProfile && (
+        <ProfileModal currentUser={user} onClose={() => setShowProfile(false)} onUpdated={updateUser} />
+      )}
     </div>
   );
 }

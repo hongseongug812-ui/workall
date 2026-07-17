@@ -19,6 +19,7 @@ function serializeChannel(channel, viewerId) {
   }
 
   const last = db.lastMessage(channel.id);
+  const viewerMembership = channel.members.find((m) => m.userId === viewerId);
 
   return {
     id: channel.id,
@@ -30,6 +31,7 @@ function serializeChannel(channel, viewerId) {
       ? { content: last.content, senderId: last.senderId, createdAt: last.createdAt }
       : null,
     unreadCount: db.unreadCount(channel, viewerId),
+    muted: !!viewerMembership?.muted,
   };
 }
 
@@ -125,6 +127,17 @@ router.get("/:id/messages/:messageId/thread", requireAuth, requireMembership, (r
 router.post("/:id/read", requireAuth, requireMembership, (req, res) => {
   const member = db.markRead(req.channel.id, req.userId);
   res.json({ lastReadAt: member?.lastReadAt });
+});
+
+router.get("/:id/pinned", requireAuth, requireMembership, (req, res) => {
+  const messages = db.listPinnedMessages(req.channel.id, req.userId);
+  res.json({ messages });
+});
+
+router.post("/:id/mute", requireAuth, requireMembership, (req, res) => {
+  const { muted } = req.body || {};
+  db.setMuted(req.channel.id, req.userId, !!muted);
+  res.json({ muted: !!muted });
 });
 
 router.post("/:id/members", requireAuth, requireMembership, (req, res) => {

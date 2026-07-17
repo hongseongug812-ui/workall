@@ -16,6 +16,7 @@ interface Props {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onOpenThread?: (messageId: string) => void;
+  onPin?: (messageId: string) => void;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -41,6 +42,7 @@ export default function MessageList({
   onDelete,
   onReact,
   onOpenThread,
+  onPin,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -124,6 +126,11 @@ export default function MessageList({
               {!mine && <div className="avatar small">{memberName(m.senderId).slice(0, 1)}</div>}
               <div className="message-bubble-wrap">
                 {!mine && <div className="message-sender">{memberName(m.senderId)}</div>}
+                {m.pinnedAt && (
+                  <div className="pinned-badge">
+                    <Icon name="pin" size={11} /> 고정됨
+                  </div>
+                )}
 
                 {isEditing ? (
                   <div className="message-edit-box">
@@ -238,6 +245,11 @@ export default function MessageList({
                       <button title="스레드로 답장" onClick={() => onOpenThread(m.id)}>
                         <Icon name="message" size={15} />
                         {m.replyCount > 0 ? <span>{m.replyCount}</span> : null}
+                      </button>
+                    )}
+                    {onPin && (
+                      <button title={m.pinnedAt ? "고정 해제" : "메시지 고정"} onClick={() => onPin(m.id)}>
+                        <Icon name="pin" size={15} />
                       </button>
                     )}
                     {mine && (

@@ -1,5 +1,6 @@
-import type { Channel, User } from "../types";
+import type { Channel, PresenceStatus, User, UserStatus } from "../types";
 import Icon from "./Icon";
+import StatusPicker from "./StatusPicker";
 
 interface Props {
   currentUser: User;
@@ -12,9 +13,12 @@ interface Props {
   onNewGroup: () => void;
   onOpenSearch: () => void;
   onOpenAttendance: () => void;
+  onOpenProfile: () => void;
   onLogout: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
+  myStatus: UserStatus;
+  onChangeStatus: (status: PresenceStatus, statusMessage: string | null) => void;
 }
 
 function initials(name: string) {
@@ -32,9 +36,12 @@ export default function Sidebar({
   onNewGroup,
   onOpenSearch,
   onOpenAttendance,
+  onOpenProfile,
   onLogout,
   darkMode,
   onToggleDarkMode,
+  myStatus,
+  onChangeStatus,
 }: Props) {
   const grouped = users.reduce<Record<string, User[]>>((acc, u) => {
     (acc[u.department] ||= []).push(u);
@@ -48,10 +55,12 @@ export default function Sidebar({
         <span className="sidebar-brand-name">Messenger</span>
       </div>
       <div className="sidebar-me">
-        <div className="avatar">{initials(currentUser.name)}</div>
+        <button className="avatar avatar-button" onClick={onOpenProfile} title="내 정보">
+          {initials(currentUser.name)}
+        </button>
         <div className="sidebar-me-info">
           <strong>{currentUser.name}</strong>
-          <span>{currentUser.department}</span>
+          <StatusPicker status={myStatus} onChange={onChangeStatus} />
         </div>
         <button
           aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
@@ -99,6 +108,7 @@ export default function Sidebar({
                   {c.name}
                 </span>
                 {c.lastMessage && <span className="channel-preview">{c.lastMessage.content}</span>}
+                {c.muted && <Icon name="bellOff" size={13} className="channel-muted-icon" />}
                 {c.unreadCount > 0 && <span className="badge">{c.unreadCount}</span>}
               </button>
             </li>

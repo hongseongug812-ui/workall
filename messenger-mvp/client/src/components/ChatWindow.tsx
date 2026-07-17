@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Attachment, Channel, Message, User } from "../types";
+import type { Attachment, Channel, Message, User, UserStatus } from "../types";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import ThreadPanel from "./ThreadPanel";
@@ -11,7 +11,9 @@ interface Props {
   channel: Channel | null;
   users: User[];
   messages: Message[];
+  pinnedMessages: Message[];
   onlineUserIds: Set<string>;
+  statusesByUser: Record<string, UserStatus>;
   typingUserIds: Set<string>;
   hasMoreMessages: boolean;
   loadingMoreMessages: boolean;
@@ -20,20 +22,26 @@ interface Props {
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
+  onPin: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;
   activeThreadParent: Message | null;
   threadReplies: Message[];
   onCloseThread: () => void;
   onAddMembers: (channelId: string, memberIds: string[]) => Promise<void>;
   onLeaveChannel: (channelId: string) => Promise<void>;
+  onSetMuted: (channelId: string, muted: boolean) => Promise<void>;
 }
+
+const STATUS_LABEL: Record<string, string> = { online: "온라인", away: "자리비움", dnd: "방해금지" };
 
 export default function ChatWindow({
   currentUser,
   channel,
   users,
   messages,
+  pinnedMessages,
   onlineUserIds,
+  statusesByUser,
   typingUserIds,
   hasMoreMessages,
   loadingMoreMessages,
@@ -42,14 +50,17 @@ export default function ChatWindow({
   onEdit,
   onDelete,
   onReact,
+  onPin,
   onOpenThread,
   activeThreadParent,
   threadReplies,
   onCloseThread,
   onAddMembers,
   onLeaveChannel,
+  onSetMuted,
 }: Props) {
   const [showMembers, setShowMembers] = useState(false);
+  const [showPinned, setShowPinned] = useState(false);
 
   if (!channel) {
     return (
@@ -65,17 +76,25 @@ export default function ChatWindow({
 
   const otherMembers = channel.members.filter((m) => m.id !== currentUser.id);
   const dmPartner = otherMembers[0];
-  const subtitle =
-    channel.type === "dm"
-      ? dmPartner && onlineUserIds.has(dmPartner.id)
-        ? "온라인"
-        : "오프라인"
-      : `멤버 ${channel.members.length}명`;
+  const dmStatus = dmPartner ? statusesByUser[dmPartner.id] : undefined;
+  const dmOnline = dmPartner ? onlineUserIds.has(dmPartner.id) : false;
+
+  let subtitle: string;
+  if (channel.type === "dm") {
+    if (!dmOnline) subtitle = "오프라인";
+    else if (dmStatus?.statusMessage) subtitle = dmStatus.statusMessage;
+    else if (dmStatus && dmStatus.status !== "online") subtitle = STATUS_LABEL[dmStatus.status];
+    else subtitle = "온라인";
+  } else {
+    subtitle = `멤버 ${channel.members.length}명`;
+  }
 
   const typingNames = [...typingUserIds]
     .filter((id) => id !== currentUser.id)
     .map((id) => channel.members.find((m) => m.id === id)?.name)
     .filter(Boolean);
+
+  const memberName = (id: string) => channel.members.find((m) => m.id === id)?.name || "알 수 없음";
 
   return (
     <main className="chat-window">
@@ -85,14 +104,45 @@ export default function ChatWindow({
             <h2>{channel.type === "group" ? `# ${channel.name}` : channel.name}</h2>
             <span className="chat-subtitle">{subtitle}</span>
           </div>
-          {channel.type === "group" && (
-            <div className="chat-header-actions">
+          <div className="chat-header-actions">
+            {pinnedMessages.length > 0 && (
+              <button
+                className="icon-button chat-header-button"
+                title="고정된 메시지"
+                onClick={() => setShowPinned((v) => !v)}
+              >
+                <Icon name="pin" size={15} /> {pinnedMessages.length}
+              </button>
+            )}
+            <button
+              className="icon-button chat-header-button"
+              title={channel.muted ? "알림 켜기" : "알림 끄기"}
+              onClick={() => onSetMuted(channel.id, !channel.muted)}
+            >
+              <Icon name={channel.muted ? "bellOff" : "bell"} size={15} />
+            </button>
+            {channel.type === "group" && (
               <button className="icon-button chat-header-button" title="멤버 관리" onClick={() => setShowMembers(true)}>
                 <Icon name="users" size={15} /> 멤버
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
+
+        {showPinned && pinnedMessages.length > 0 && (
+          <div className="pinned-bar">
+            {pinnedMessages.map((m) => (
+              <div key={m.id} className="pinned-item">
+                <Icon name="pin" size={13} />
+                <span className="pinned-item-sender">{memberName(m.senderId)}</span>
+                <span className="pinned-item-content">{m.content || (m.attachment ? `[파일] ${m.attachment.name}` : "")}</span>
+                <button className="link-button" onClick={() => onPin(m.id)}>
+                  고정 해제
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <MessageList
           channel={channel}
@@ -102,6 +152,7 @@ export default function ChatWindow({
           onDelete={onDelete}
           onReact={onReact}
           onOpenThread={onOpenThread}
+          onPin={onPin}
           hasMore={hasMoreMessages}
           loadingMore={loadingMoreMessages}
           onLoadMore={onLoadMoreMessages}
