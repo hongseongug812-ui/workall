@@ -9,6 +9,7 @@ build/
 
 # 런타임 데이터/비밀정보
 messenger-mvp/server/data/
+messenger-mvp/server/uploads/
 .env
 .env.*
 !.env.example

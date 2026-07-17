@@ -1,4 +1,4 @@
-import type { Channel, Message, User } from "./types";
+import type { Attachment, Channel, Message, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -57,6 +57,25 @@ export const api = {
     request<{ messages: Message[] }>(`/api/channels/${channelId}/messages`),
   markRead: (channelId: string) =>
     request<{ lastReadAt: string }>(`/api/channels/${channelId}/read`, { method: "POST" }),
+  getThread: (channelId: string, messageId: string) =>
+    request<{ parent: Message; replies: Message[] }>(
+      `/api/channels/${channelId}/messages/${messageId}/thread`
+    ),
+  search: (query: string, channelId?: string) => {
+    const params = new URLSearchParams({ q: query });
+    if (channelId) params.set("channelId", channelId);
+    return request<{ messages: Message[] }>(`/api/search?${params.toString()}`);
+  },
+  async uploadFile(file: File): Promise<Attachment> {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const res = await fetch(`${API_BASE}/api/uploads`, { method: "POST", headers, body: form });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(body.error || `업로드 실패 (${res.status})`, res.status);
+    return body as Attachment;
+  },
 };
 
 export { ApiError, API_BASE };

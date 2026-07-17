@@ -108,8 +108,18 @@ router.get("/:id/messages", requireAuth, requireMembership, (req, res) => {
   const messages = db.listMessages(req.channel.id, {
     before: typeof before === "string" ? before : undefined,
     limit: limit ? Math.min(Number(limit) || 50, 200) : 50,
+    viewerId: req.userId,
   });
   res.json({ messages });
+});
+
+router.get("/:id/messages/:messageId/thread", requireAuth, requireMembership, (req, res) => {
+  const parent = db.getMessageById(req.params.messageId, req.userId);
+  if (!parent || parent.channelId !== req.channel.id) {
+    return res.status(404).json({ error: "메시지를 찾을 수 없습니다." });
+  }
+  const replies = db.listThreadReplies(req.params.messageId, req.userId);
+  res.json({ parent, replies });
 });
 
 router.post("/:id/read", requireAuth, requireMembership, (req, res) => {

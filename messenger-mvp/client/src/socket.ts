@@ -1,9 +1,15 @@
 import { io, Socket } from "socket.io-client";
 import { API_BASE } from "./api";
-import type { Message } from "./types";
+import type { Attachment, Message } from "./types";
+
+interface AckResponse {
+  message?: Message;
+  error?: string;
+}
 
 interface ServerToClientEvents {
   "message:new": (message: Message) => void;
+  "message:updated": (message: Message) => void;
   "typing": (payload: { channelId: string; userId: string; isTyping: boolean }) => void;
   "presence:update": (payload: { userId: string; online: boolean }) => void;
   "presence:snapshot": (payload: { onlineUserIds: string[] }) => void;
@@ -12,9 +18,12 @@ interface ServerToClientEvents {
 
 interface ClientToServerEvents {
   "message:send": (
-    payload: { channelId: string; content: string },
-    ack: (res: { message?: Message; error?: string }) => void
+    payload: { channelId: string; content: string; parentMessageId?: string; attachment?: Attachment },
+    ack: (res: AckResponse) => void
   ) => void;
+  "message:edit": (payload: { messageId: string; content: string }, ack: (res: AckResponse) => void) => void;
+  "message:delete": (payload: { messageId: string }, ack: (res: AckResponse) => void) => void;
+  "reaction:toggle": (payload: { messageId: string; emoji: string }, ack: (res: AckResponse) => void) => void;
   "typing": (payload: { channelId: string; isTyping: boolean }) => void;
   "channel:read": (payload: { channelId: string }) => void;
 }

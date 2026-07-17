@@ -6,12 +6,31 @@ export interface User {
   createdAt: string;
 }
 
+export interface Attachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export interface Reaction {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+}
+
 export interface Message {
   id: string;
   channelId: string;
   senderId: string;
-  content: string;
+  parentMessageId: string | null;
+  content: string | null;
+  attachment: Attachment | null;
   createdAt: string;
+  editedAt: string | null;
+  deletedAt: string | null;
+  replyCount: number;
+  reactions: Reaction[];
 }
 
 export interface Channel {

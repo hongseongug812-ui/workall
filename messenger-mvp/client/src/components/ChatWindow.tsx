@@ -1,6 +1,7 @@
-import type { Channel, Message, User } from "../types";
+import type { Attachment, Channel, Message, User } from "../types";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
+import ThreadPanel from "./ThreadPanel";
 
 interface Props {
   currentUser: User;
@@ -8,10 +9,31 @@ interface Props {
   messages: Message[];
   onlineUserIds: Set<string>;
   typingUserIds: Set<string>;
-  onSend: (channelId: string, content: string) => Promise<void>;
+  onSend: (channelId: string, content: string, opts?: { parentMessageId?: string; attachment?: Attachment }) => Promise<void>;
+  onEdit: (messageId: string, content: string) => Promise<void>;
+  onDelete: (messageId: string) => Promise<void>;
+  onReact: (messageId: string, emoji: string) => void;
+  onOpenThread: (messageId: string) => void;
+  activeThreadParent: Message | null;
+  threadReplies: Message[];
+  onCloseThread: () => void;
 }
 
-export default function ChatWindow({ currentUser, channel, messages, onlineUserIds, typingUserIds, onSend }: Props) {
+export default function ChatWindow({
+  currentUser,
+  channel,
+  messages,
+  onlineUserIds,
+  typingUserIds,
+  onSend,
+  onEdit,
+  onDelete,
+  onReact,
+  onOpenThread,
+  activeThreadParent,
+  threadReplies,
+  onCloseThread,
+}: Props) {
   if (!channel) {
     return (
       <main className="chat-window empty-state">
@@ -36,20 +58,46 @@ export default function ChatWindow({ currentUser, channel, messages, onlineUserI
 
   return (
     <main className="chat-window">
-      <header className="chat-header">
-        <div>
-          <h2>{channel.type === "group" ? `# ${channel.name}` : channel.name}</h2>
-          <span className="chat-subtitle">{subtitle}</span>
+      <div className="chat-main">
+        <header className="chat-header">
+          <div>
+            <h2>{channel.type === "group" ? `# ${channel.name}` : channel.name}</h2>
+            <span className="chat-subtitle">{subtitle}</span>
+          </div>
+        </header>
+
+        <MessageList
+          channel={channel}
+          messages={messages}
+          currentUserId={currentUser.id}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onReact={onReact}
+          onOpenThread={onOpenThread}
+        />
+
+        <div className="typing-indicator">
+          {typingNames.length > 0 && `${typingNames.join(", ")}님이 입력 중...`}
         </div>
-      </header>
 
-      <MessageList channel={channel} messages={messages} currentUserId={currentUser.id} />
-
-      <div className="typing-indicator">
-        {typingNames.length > 0 && `${typingNames.join(", ")}님이 입력 중...`}
+        <MessageInput channelId={channel.id} onSend={(content, attachment) => onSend(channel.id, content, { attachment })} />
       </div>
 
-      <MessageInput channelId={channel.id} onSend={(content) => onSend(channel.id, content)} />
+      {activeThreadParent && (
+        <ThreadPanel
+          channel={channel}
+          currentUser={currentUser}
+          parent={activeThreadParent}
+          replies={threadReplies}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onReact={onReact}
+          onSendReply={(content, attachment) =>
+            onSend(channel.id, content, { parentMessageId: activeThreadParent.id, attachment })
+          }
+          onClose={onCloseThread}
+        />
+      )}
     </main>
   );
 }

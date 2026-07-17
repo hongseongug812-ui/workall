@@ -14,7 +14,6 @@ const SEED_USERS = [
 const SEED_PASSWORD = "password123";
 
 async function seed() {
-  db.load();
   const created = [];
 
   for (const spec of SEED_USERS) {

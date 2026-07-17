@@ -1,10 +1,13 @@
 const http = require("http");
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
 const authRoutes = require("./routes/auth").router;
 const usersRoutes = require("./routes/users");
 const channelsRoutes = require("./routes/channels");
+const searchRoutes = require("./routes/search");
+const uploadsRoutes = require("./routes/uploads");
 const { initSocket } = require("./socket");
 
 const PORT = process.env.PORT || 4000;
@@ -13,11 +16,14 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 const app = express();
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/channels", channelsRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/uploads", uploadsRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "찾을 수 없는 경로입니다." }));
 

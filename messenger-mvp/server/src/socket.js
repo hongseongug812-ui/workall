@@ -49,18 +49,73 @@ function initSocket(httpServer, corsOrigin) {
 
     socket.emit("presence:snapshot", { onlineUserIds: [...onlineSockets.keys()] });
 
-    socket.on("message:send", ({ channelId, content }, ack) => {
+    socket.on("message:send", ({ channelId, content, parentMessageId, attachment }, ack) => {
       const reply = typeof ack === "function" ? ack : () => {};
-      if (typeof channelId !== "string" || typeof content !== "string" || !content.trim()) {
+      const text = typeof content === "string" ? content.trim() : "";
+      const hasAttachment =
+        attachment &&
+        typeof attachment.url === "string" &&
+        typeof attachment.name === "string" &&
+        typeof attachment.mime === "string" &&
+        typeof attachment.size === "number";
+
+      if (typeof channelId !== "string" || (!text && !hasAttachment)) {
         return reply({ error: "잘못된 메시지입니다." });
       }
       const channel = db.findChannelById(channelId);
       if (!channel || !db.isMember(channel, userId)) {
         return reply({ error: "이 채널에 메시지를 보낼 수 없습니다." });
       }
-      const message = db.createMessage({ channelId, senderId: userId, content: content.trim() });
+      let parentId = null;
+      if (typeof parentMessageId === "string") {
+        const parent = db.getMessageById(parentMessageId, userId);
+        if (!parent || parent.channelId !== channelId || parent.parentMessageId) {
+          return reply({ error: "답장할 수 없는 메시지입니다." });
+        }
+        parentId = parentMessageId;
+      }
+      const message = db.createMessage({
+        channelId,
+        senderId: userId,
+        content: text || null,
+        parentMessageId: parentId,
+        attachment: hasAttachment ? attachment : null,
+      });
       io.to(channelRoom(channelId)).emit("message:new", message);
       reply({ message });
+    });
+
+    socket.on("message:edit", ({ messageId, content }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      const text = typeof content === "string" ? content.trim() : "";
+      if (typeof messageId !== "string" || !text) return reply({ error: "잘못된 요청입니다." });
+      const result = db.editMessage(messageId, userId, text);
+      if (result.error) return reply({ error: result.error === "forbidden" ? "본인 메시지만 수정할 수 있습니다." : "메시지를 찾을 수 없습니다." });
+      io.to(channelRoom(result.message.channelId)).emit("message:updated", result.message);
+      reply({ message: result.message });
+    });
+
+    socket.on("message:delete", ({ messageId }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (typeof messageId !== "string") return reply({ error: "잘못된 요청입니다." });
+      const result = db.deleteMessage(messageId, userId);
+      if (result.error) return reply({ error: result.error === "forbidden" ? "본인 메시지만 삭제할 수 있습니다." : "메시지를 찾을 수 없습니다." });
+      io.to(channelRoom(result.message.channelId)).emit("message:updated", result.message);
+      reply({ message: result.message });
+    });
+
+    socket.on("reaction:toggle", ({ messageId, emoji }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (typeof messageId !== "string" || typeof emoji !== "string" || !emoji.trim() || emoji.length > 8) {
+        return reply({ error: "잘못된 요청입니다." });
+      }
+      const message = db.getMessageById(messageId, userId);
+      if (!message) return reply({ error: "메시지를 찾을 수 없습니다." });
+      const channel = db.findChannelById(message.channelId);
+      if (!channel || !db.isMember(channel, userId)) return reply({ error: "권한이 없습니다." });
+      const updated = db.toggleReaction(messageId, userId, emoji.trim());
+      io.to(channelRoom(updated.channelId)).emit("message:updated", updated);
+      reply({ message: updated });
     });
 
     socket.on("typing", ({ channelId, isTyping }) => {

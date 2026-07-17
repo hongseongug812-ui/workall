@@ -9,7 +9,10 @@ interface Props {
   onSelectChannel: (channelId: string) => void;
   onSelectUser: (userId: string) => void;
   onNewGroup: () => void;
+  onOpenSearch: () => void;
   onLogout: () => void;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
 }
 
 function initials(name: string) {
@@ -25,7 +28,10 @@ export default function Sidebar({
   onSelectChannel,
   onSelectUser,
   onNewGroup,
+  onOpenSearch,
   onLogout,
+  darkMode,
+  onToggleDarkMode,
 }: Props) {
   const grouped = users.reduce<Record<string, User[]>>((acc, u) => {
     (acc[u.department] ||= []).push(u);
@@ -40,8 +46,17 @@ export default function Sidebar({
           <strong>{currentUser.name}</strong>
           <span>{currentUser.department}</span>
         </div>
+        <button className="icon-button" onClick={onToggleDarkMode} title={darkMode ? "라이트 모드" : "다크 모드"}>
+          {darkMode ? "☀️" : "🌙"}
+        </button>
         <button className="link-button" onClick={onLogout} title="로그아웃">
           로그아웃
+        </button>
+      </div>
+
+      <div className="sidebar-search">
+        <button className="sidebar-search-button" onClick={onOpenSearch}>
+          🔍 메시지 검색
         </button>
       </div>
 
