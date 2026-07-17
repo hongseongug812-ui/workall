@@ -1,0 +1,17 @@
+# 사내 방법론 가이드는 저장소에 포함하지 않음
+ai_guide/
+
+# 의존성/빌드 산출물
+node_modules/
+dist/
+build/
+
+# 런타임 데이터/비밀정보
+messenger-mvp/server/data/
+.env
+.env.*
+!.env.example
+
+# OS/에디터
+.DS_Store
+Thumbs.db

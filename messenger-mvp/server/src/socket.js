@@ -1,0 +1,102 @@
+const { Server } = require("socket.io");
+const { verifyToken } = require("./auth");
+const db = require("./db");
+const { publicUser } = require("./routes/auth");
+
+let io = null;
+// userId -> Set<socketId>, lets one user have multiple open tabs/devices
+// while presence is still reported per-user, not per-connection.
+const onlineSockets = new Map();
+
+function userRoom(userId) {
+  return `user:${userId}`;
+}
+function channelRoom(channelId) {
+  return `channel:${channelId}`;
+}
+
+function initSocket(httpServer, corsOrigin) {
+  io = new Server(httpServer, {
+    cors: { origin: corsOrigin, credentials: true },
+  });
+
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("인증 토큰이 필요합니다."));
+    try {
+      const payload = verifyToken(token);
+      socket.userId = payload.sub;
+      next();
+    } catch (err) {
+      next(new Error("토큰이 유효하지 않거나 만료되었습니다."));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    const { userId } = socket;
+
+    socket.join(userRoom(userId));
+    for (const channel of db.listChannelsForUser(userId)) {
+      socket.join(channelRoom(channel.id));
+    }
+
+    const wasOffline = !onlineSockets.has(userId) || onlineSockets.get(userId).size === 0;
+    if (!onlineSockets.has(userId)) onlineSockets.set(userId, new Set());
+    onlineSockets.get(userId).add(socket.id);
+    if (wasOffline) {
+      io.emit("presence:update", { userId, online: true });
+    }
+
+    socket.emit("presence:snapshot", { onlineUserIds: [...onlineSockets.keys()] });
+
+    socket.on("message:send", ({ channelId, content }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (typeof channelId !== "string" || typeof content !== "string" || !content.trim()) {
+        return reply({ error: "잘못된 메시지입니다." });
+      }
+      const channel = db.findChannelById(channelId);
+      if (!channel || !db.isMember(channel, userId)) {
+        return reply({ error: "이 채널에 메시지를 보낼 수 없습니다." });
+      }
+      const message = db.createMessage({ channelId, senderId: userId, content: content.trim() });
+      io.to(channelRoom(channelId)).emit("message:new", message);
+      reply({ message });
+    });
+
+    socket.on("typing", ({ channelId, isTyping }) => {
+      if (typeof channelId !== "string") return;
+      const channel = db.findChannelById(channelId);
+      if (!channel || !db.isMember(channel, userId)) return;
+      socket.to(channelRoom(channelId)).emit("typing", { channelId, userId, isTyping: !!isTyping });
+    });
+
+    socket.on("channel:read", ({ channelId }) => {
+      if (typeof channelId !== "string") return;
+      db.markRead(channelId, userId);
+    });
+
+    socket.on("disconnect", () => {
+      const sockets = onlineSockets.get(userId);
+      if (!sockets) return;
+      sockets.delete(socket.id);
+      if (sockets.size === 0) {
+        onlineSockets.delete(userId);
+        io.emit("presence:update", { userId, online: false });
+      }
+    });
+  });
+
+  return io;
+}
+
+function notifyChannelCreated(channel) {
+  if (!io) return;
+  for (const member of channel.members) {
+    io.sockets.sockets.forEach((socket) => {
+      if (socket.userId === member.userId) socket.join(channelRoom(channel.id));
+    });
+    io.to(userRoom(member.userId)).emit("channel:new", { channelId: channel.id });
+  }
+}
+
+module.exports = { initSocket, notifyChannelCreated };
