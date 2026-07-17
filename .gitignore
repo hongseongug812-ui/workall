@@ -5,6 +5,7 @@ ai_guide/
 node_modules/
 dist/
 build/
+*.tsbuildinfo
 
 # 런타임 데이터/비밀정보
 messenger-mvp/server/data/
