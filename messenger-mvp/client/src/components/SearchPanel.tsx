@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import type { Channel, Message, User } from "../types";
+import Icon from "./Icon";
 
 interface Props {
   channels: Channel[];
@@ -61,6 +62,7 @@ export default function SearchPanel({ channels, currentUser, onClose, onSelectRe
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal search-modal" onClick={(e) => e.stopPropagation()}>
         <div className="search-input-row">
+          <Icon className="search-field-icon" name="search" size={17} />
           <input
             autoFocus
             value={query}
@@ -68,7 +70,7 @@ export default function SearchPanel({ channels, currentUser, onClose, onSelectRe
             placeholder="메시지 검색 (2자 이상)"
           />
           <button className="link-button" onClick={onClose}>
-            닫기
+            <Icon name="close" size={14} /> 닫기
           </button>
         </div>
 

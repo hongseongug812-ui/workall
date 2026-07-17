@@ -14,6 +14,9 @@ interface ServerToClientEvents {
   "presence:update": (payload: { userId: string; online: boolean }) => void;
   "presence:snapshot": (payload: { onlineUserIds: string[] }) => void;
   "channel:new": (payload: { channelId: string }) => void;
+  "channel:updated": (payload: { channelId: string }) => void;
+  "channel:left": (payload: { channelId: string }) => void;
+  "attendance:updated": () => void;
 }
 
 interface ClientToServerEvents {

@@ -63,9 +63,19 @@ conn.exec(`
     PRIMARY KEY (message_id, user_id, emoji)
   );
 
+  CREATE TABLE IF NOT EXISTS attendance (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    date TEXT NOT NULL,
+    check_in_at TEXT,
+    check_out_at TEXT,
+    UNIQUE (user_id, date)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id);
   CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
+  CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
 `);
 
 function id() {
@@ -186,6 +196,31 @@ function createChannel({ type, name, memberIds, createdBy }) {
 
 function isMember(channel, userId) {
   return channel.members.some((m) => m.userId === userId);
+}
+
+function addMembers(channelId, userIds) {
+  const insert = conn.prepare(
+    "INSERT OR IGNORE INTO channel_members (channel_id, user_id, last_read_at) VALUES (?,?,?)"
+  );
+  const ts = now();
+  const tx = conn.transaction((ids) => {
+    for (const userId of ids) insert.run(channelId, userId, ts);
+  });
+  tx(userIds);
+  return findChannelById(channelId);
+}
+
+function removeMember(channelId, userId) {
+  conn.prepare("DELETE FROM channel_members WHERE channel_id = ? AND user_id = ?").run(channelId, userId);
+  const remaining = conn
+    .prepare("SELECT COUNT(*) AS n FROM channel_members WHERE channel_id = ?")
+    .get(channelId).n;
+  if (remaining === 0) {
+    conn.prepare("DELETE FROM messages WHERE channel_id = ?").run(channelId);
+    conn.prepare("DELETE FROM channels WHERE id = ?").run(channelId);
+    return null;
+  }
+  return findChannelById(channelId);
 }
 
 function markRead(channelId, userId) {
@@ -379,6 +414,68 @@ function searchMessages(userId, query, { channelId } = {}) {
   return rows.map((r) => serializeMessageRow(r, userId));
 }
 
+// ---- Attendance (출퇴근) ----
+
+function serializeAttendanceRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    date: row.date,
+    checkInAt: row.check_in_at,
+    checkOutAt: row.check_out_at,
+  };
+}
+
+function getAttendance(userId, date) {
+  const row = conn.prepare("SELECT * FROM attendance WHERE user_id = ? AND date = ?").get(userId, date);
+  return serializeAttendanceRow(row);
+}
+
+function checkIn(userId, date) {
+  conn
+    .prepare(
+      "INSERT OR IGNORE INTO attendance (id, user_id, date, check_in_at) VALUES (?,?,?,?)"
+    )
+    .run(id(), userId, date, now());
+  return getAttendance(userId, date);
+}
+
+function checkOut(userId, date) {
+  const existing = getAttendance(userId, date);
+  if (!existing || !existing.checkInAt) return { error: "not_checked_in" };
+  if (existing.checkOutAt) return { error: "already_checked_out" };
+  conn
+    .prepare("UPDATE attendance SET check_out_at = ? WHERE user_id = ? AND date = ?")
+    .run(now(), userId, date);
+  return { attendance: getAttendance(userId, date) };
+}
+
+function listAttendanceHistory(userId, limit = 30) {
+  const rows = conn
+    .prepare("SELECT * FROM attendance WHERE user_id = ? ORDER BY date DESC LIMIT ?")
+    .all(userId, Math.min(limit, 100));
+  return rows.map(serializeAttendanceRow);
+}
+
+function listTeamAttendanceForDate(date) {
+  const rows = conn
+    .prepare(
+      `SELECT u.id AS user_id, u.name, u.department, a.check_in_at, a.check_out_at
+       FROM users u
+       LEFT JOIN attendance a ON a.user_id = u.id AND a.date = ?
+       ORDER BY u.department, u.name`
+    )
+    .all(date);
+  return rows.map((r) => ({
+    userId: r.user_id,
+    name: r.name,
+    department: r.department,
+    checkInAt: r.check_in_at,
+    checkOutAt: r.check_out_at,
+  }));
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -389,6 +486,8 @@ module.exports = {
   findDmChannel,
   createChannel,
   isMember,
+  addMembers,
+  removeMember,
   markRead,
   listMessages,
   listThreadReplies,
@@ -400,4 +499,9 @@ module.exports = {
   deleteMessage,
   toggleReaction,
   searchMessages,
+  getAttendance,
+  checkIn,
+  checkOut,
+  listAttendanceHistory,
+  listTeamAttendanceForDate,
 };

@@ -2,7 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../auth");
 const { publicUser } = require("./auth");
-const { notifyChannelCreated } = require("../socket");
+const { notifyChannelCreated, notifyMembersChanged } = require("../socket");
 
 const router = express.Router();
 
@@ -125,6 +125,33 @@ router.get("/:id/messages/:messageId/thread", requireAuth, requireMembership, (r
 router.post("/:id/read", requireAuth, requireMembership, (req, res) => {
   const member = db.markRead(req.channel.id, req.userId);
   res.json({ lastReadAt: member?.lastReadAt });
+});
+
+router.post("/:id/members", requireAuth, requireMembership, (req, res) => {
+  if (req.channel.type !== "group") {
+    return res.status(400).json({ error: "그룹 채널에서만 멤버를 추가할 수 있습니다." });
+  }
+  const { memberIds } = req.body || {};
+  const ids = Array.isArray(memberIds) ? memberIds.filter((id) => typeof id === "string") : [];
+  if (ids.length === 0) return res.status(400).json({ error: "추가할 사용자를 선택하세요." });
+  for (const memberId of ids) {
+    if (!db.findUserById(memberId)) {
+      return res.status(404).json({ error: `사용자를 찾을 수 없습니다: ${memberId}` });
+    }
+  }
+  const newIds = ids.filter((memberId) => !db.isMember(req.channel, memberId));
+  const channel = db.addMembers(req.channel.id, ids);
+  notifyMembersChanged(req.channel.id, { joinedUserIds: newIds });
+  res.json({ channel: serializeChannel(channel, req.userId) });
+});
+
+router.delete("/:id/members/me", requireAuth, requireMembership, (req, res) => {
+  if (req.channel.type !== "group") {
+    return res.status(400).json({ error: "1:1 대화는 나갈 수 없습니다." });
+  }
+  db.removeMember(req.channel.id, req.userId);
+  notifyMembersChanged(req.channel.id, { leftUserId: req.userId });
+  res.status(204).end();
 });
 
 module.exports = router;

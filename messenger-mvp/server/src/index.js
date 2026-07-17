@@ -8,6 +8,7 @@ const usersRoutes = require("./routes/users");
 const channelsRoutes = require("./routes/channels");
 const searchRoutes = require("./routes/search");
 const uploadsRoutes = require("./routes/uploads");
+const attendanceRoutes = require("./routes/attendance");
 const { initSocket } = require("./socket");
 
 const PORT = process.env.PORT || 4000;
@@ -24,6 +25,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/channels", channelsRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/uploads", uploadsRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "찾을 수 없는 경로입니다." }));
 

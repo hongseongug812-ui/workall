@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { Channel, Message } from "../types";
 import { API_BASE } from "../api";
-import { LinkifiedText } from "../linkify";
+import { MessageContent } from "../linkify";
+import Icon from "./Icon";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 const IMAGE_MIME_RE = /^image\//;
@@ -15,6 +16,9 @@ interface Props {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onOpenThread?: (messageId: string) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function formatTime(iso: string) {
@@ -29,17 +33,48 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export default function MessageList({ channel, messages, currentUserId, onEdit, onDelete, onReact, onOpenThread }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+export default function MessageList({
+  channel,
+  messages,
+  currentUserId,
+  onEdit,
+  onDelete,
+  onReact,
+  onOpenThread,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+}: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevFirstIdRef = useRef<string | undefined>(undefined);
+  const prevLastIdRef = useRef<string | undefined>(undefined);
+  const prevScrollHeightRef = useRef(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  // 새 메시지가 뒤에 붙으면 맨 아래로, 이전 메시지가 앞에 붙으면(더 불러오기)
+  // 스크롤 위치를 시각적으로 유지한다.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const firstId = messages[0]?.id;
+    const lastId = messages[messages.length - 1]?.id;
+
+    if (lastId !== prevLastIdRef.current) {
+      container.scrollTop = container.scrollHeight;
+    } else if (firstId !== prevFirstIdRef.current) {
+      container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
+    }
+
+    prevFirstIdRef.current = firstId;
+    prevLastIdRef.current = lastId;
+    prevScrollHeightRef.current = container.scrollHeight;
+  }, [messages]);
 
   const memberName = (id: string) => channel.members.find((m) => m.id === id)?.name || "알 수 없음";
+  const memberNames = channel.members.map((m) => m.name);
+  const currentUserName = memberName(currentUserId);
 
   function startEdit(m: Message) {
     setEditingId(m.id);
@@ -65,7 +100,14 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
   let lastDate = "";
 
   return (
-    <div className="message-list" onClick={() => setReactionPickerFor(null)}>
+    <div className="message-list" ref={containerRef} onClick={() => setReactionPickerFor(null)}>
+      {hasMore && (
+        <div className="load-more-row">
+          <button className="load-more-button" onClick={onLoadMore} disabled={loadingMore}>
+            {loadingMore ? "불러오는 중..." : "이전 메시지 더 보기"}
+          </button>
+        </div>
+      )}
       {messages.length === 0 && <p className="message-empty">아직 메시지가 없습니다. 첫 메시지를 보내보세요.</p>}
       {messages.map((m) => {
         const mine = m.senderId === currentUserId;
@@ -124,7 +166,7 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
-                                📎 {m.attachment.name}
+                                <Icon name="file" size={16} /> {m.attachment.name}
                                 <span className="attachment-size">{formatSize(m.attachment.size)}</span>
                               </a>
                             )}
@@ -132,7 +174,7 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
                         )}
                         {m.content && (
                           <div className="message-text">
-                            <LinkifiedText text={m.content} />
+                            <MessageContent text={m.content} memberNames={memberNames} currentUserName={currentUserName} />
                           </div>
                         )}
                       </>
@@ -174,7 +216,7 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
                           setReactionPickerFor(reactionPickerFor === m.id ? null : m.id);
                         }}
                       >
-                        🙂+
+                        <Icon name="smile" size={15} />
                       </button>
                       {reactionPickerFor === m.id && (
                         <div className="reaction-picker" onClick={(e) => e.stopPropagation()}>
@@ -194,12 +236,13 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
                     </div>
                     {onOpenThread && (
                       <button title="스레드로 답장" onClick={() => onOpenThread(m.id)}>
-                        💬{m.replyCount > 0 ? ` ${m.replyCount}` : ""}
+                        <Icon name="message" size={15} />
+                        {m.replyCount > 0 ? <span>{m.replyCount}</span> : null}
                       </button>
                     )}
                     {mine && (
                       <button title="수정" onClick={() => startEdit(m)}>
-                        ✏️
+                        <Icon name="edit" size={15} />
                       </button>
                     )}
                     {mine && (
@@ -209,7 +252,7 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
                           if (confirm("이 메시지를 삭제할까요?")) onDelete(m.id);
                         }}
                       >
-                        🗑️
+                        <Icon name="trash" size={15} />
                       </button>
                     )}
                   </div>
@@ -217,7 +260,7 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
 
                 {onOpenThread && m.replyCount > 0 && (
                   <button className="thread-summary" onClick={() => onOpenThread(m.id)}>
-                    💬 {m.replyCount}개 답장
+                    <Icon name="message" size={14} /> {m.replyCount}개 답장
                   </button>
                 )}
               </div>
@@ -225,7 +268,6 @@ export default function MessageList({ channel, messages, currentUserId, onEdit, 
           </div>
         );
       })}
-      <div ref={bottomRef} />
     </div>
   );
 }

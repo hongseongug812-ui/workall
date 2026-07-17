@@ -1,6 +1,7 @@
 import type { Attachment, Channel, Message, User } from "../types";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
+import Icon from "./Icon";
 
 interface Props {
   channel: Channel;
@@ -30,7 +31,7 @@ export default function ThreadPanel({
       <header className="thread-header">
         <span>스레드</span>
         <button className="link-button" onClick={onClose}>
-          ✕ 닫기
+          <Icon name="close" size={14} /> 닫기
         </button>
       </header>
       <div className="thread-parent">
@@ -54,7 +55,7 @@ export default function ThreadPanel({
           onReact={onReact}
         />
       </div>
-      <MessageInput channelId={channel.id} onSend={onSendReply} />
+      <MessageInput channelId={channel.id} members={channel.members} onSend={onSendReply} />
     </aside>
   );
 }

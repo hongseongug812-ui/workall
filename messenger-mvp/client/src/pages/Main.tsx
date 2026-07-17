@@ -7,6 +7,9 @@ import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import NewGroupModal from "../components/NewGroupModal";
 import SearchPanel from "../components/SearchPanel";
+import AttendancePanel from "../components/AttendancePanel";
+
+const MESSAGE_PAGE_SIZE = 50;
 
 export default function Main() {
   const { user, logout } = useAuth();
@@ -14,20 +17,33 @@ export default function Main() {
   const [users, setUsers] = useState<User[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messagesByChannel, setMessagesByChannel] = useState<Record<string, Message[]>>({});
+  const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
   const [threadRepliesByParent, setThreadRepliesByParent] = useState<Record<string, Message[]>>({});
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUsersByChannel, setTypingUsersByChannel] = useState<Record<string, Set<string>>>({});
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showAttendance, setShowAttendance] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
+  const channelsRef = useRef<Channel[]>([]);
+  channelsRef.current = channels;
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? "dark" : "light";
     localStorage.setItem("messenger-mvp:theme", darkMode ? "dark" : "light");
   }, [darkMode]);
+
+  // 새 메시지 알림 권한은 최초 1회만 물어본다 (브라우저가 지원하고 아직 결정 안 됐을 때).
+  useEffect(() => {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   const refreshChannels = useCallback(async () => {
     const { channels: list } = await api.listChannels();
@@ -57,6 +73,28 @@ export default function Main() {
       });
     }
   }, []);
+
+  const notifyIfBackground = useCallback(
+    (message: Message) => {
+      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+      if (message.senderId === user?.id) return;
+      const isActiveAndFocused =
+        message.channelId === activeChannelIdRef.current && document.visibilityState === "visible";
+      if (isActiveAndFocused) return;
+
+      const channel = channelsRef.current.find((c) => c.id === message.channelId);
+      if (!channel) return;
+      const sender = channel.members.find((m) => m.id === message.senderId);
+      const title = channel.type === "group" ? `${channel.name} · ${sender?.name || "알 수 없음"}` : sender?.name || channel.name;
+      const body = message.content || (message.attachment ? `[파일] ${message.attachment.name}` : "");
+      try {
+        new Notification(title, { body, tag: message.channelId });
+      } catch {
+        // 알림 생성 실패는 조용히 무시 (일부 브라우저/환경 제약)
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -90,6 +128,7 @@ export default function Main() {
             ),
           };
         });
+        notifyIfBackground(message);
         return;
       }
 
@@ -121,6 +160,7 @@ export default function Main() {
             return at < bt ? 1 : -1;
           })
       );
+      notifyIfBackground(message);
     });
 
     socket.on("message:updated", patchMessage);
@@ -138,6 +178,18 @@ export default function Main() {
       refreshChannels();
     });
 
+    socket.on("channel:updated", () => {
+      refreshChannels();
+    });
+
+    socket.on("channel:left", ({ channelId }) => {
+      setChannels((prev) => prev.filter((c) => c.id !== channelId));
+      if (activeChannelIdRef.current === channelId) {
+        setActiveChannelId(null);
+        setActiveThreadId(null);
+      }
+    });
+
     return () => {
       socket.off("presence:snapshot");
       socket.off("presence:update");
@@ -145,8 +197,10 @@ export default function Main() {
       socket.off("message:updated", patchMessage);
       socket.off("typing");
       socket.off("channel:new");
+      socket.off("channel:updated");
+      socket.off("channel:left");
     };
-  }, [user, refreshChannels, patchMessage]);
+  }, [user, refreshChannels, patchMessage, notifyIfBackground]);
 
   const openChannel = useCallback(
     async (channelId: string) => {
@@ -155,6 +209,7 @@ export default function Main() {
       if (!messagesByChannel[channelId]) {
         const { messages } = await api.listMessages(channelId);
         setMessagesByChannel((prev) => ({ ...prev, [channelId]: messages }));
+        setHasMoreByChannel((prev) => ({ ...prev, [channelId]: messages.length >= MESSAGE_PAGE_SIZE }));
       }
       setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c)));
       api.markRead(channelId).catch(() => {});
@@ -162,6 +217,22 @@ export default function Main() {
     },
     [messagesByChannel]
   );
+
+  const loadMoreMessages = useCallback(async () => {
+    const channelId = activeChannelIdRef.current;
+    if (!channelId || loadingMore) return;
+    const current = messagesByChannel[channelId] || [];
+    const oldest = current[0];
+    if (!oldest) return;
+    setLoadingMore(true);
+    try {
+      const { messages: older } = await api.listMessages(channelId, { before: oldest.createdAt });
+      setMessagesByChannel((prev) => ({ ...prev, [channelId]: [...older, ...(prev[channelId] || [])] }));
+      setHasMoreByChannel((prev) => ({ ...prev, [channelId]: older.length >= MESSAGE_PAGE_SIZE }));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [messagesByChannel, loadingMore]);
 
   const openDmWith = useCallback(
     async (otherUserId: string) => {
@@ -242,6 +313,20 @@ export default function Main() {
     [openChannel, openThread]
   );
 
+  const addMembersToChannel = useCallback(async (channelId: string, memberIds: string[]) => {
+    const { channel } = await api.addMembers(channelId, memberIds);
+    setChannels((prev) => prev.map((c) => (c.id === channelId ? channel : c)));
+  }, []);
+
+  const leaveChannel = useCallback(async (channelId: string) => {
+    await api.leaveChannel(channelId);
+    setChannels((prev) => prev.filter((c) => c.id !== channelId));
+    if (activeChannelIdRef.current === channelId) {
+      setActiveChannelId(null);
+      setActiveThreadId(null);
+    }
+  }, []);
+
   if (!user) return null;
 
   const activeChannel = channels.find((c) => c.id === activeChannelId) || null;
@@ -261,6 +346,7 @@ export default function Main() {
         onSelectUser={openDmWith}
         onNewGroup={() => setShowNewGroup(true)}
         onOpenSearch={() => setShowSearch(true)}
+        onOpenAttendance={() => setShowAttendance(true)}
         onLogout={logout}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((v) => !v)}
@@ -268,9 +354,13 @@ export default function Main() {
       <ChatWindow
         currentUser={user}
         channel={activeChannel}
+        users={users}
         messages={activeChannel ? messagesByChannel[activeChannel.id] || [] : []}
         onlineUserIds={onlineUserIds}
         typingUserIds={activeChannel ? typingUsersByChannel[activeChannel.id] || new Set() : new Set()}
+        hasMoreMessages={activeChannel ? !!hasMoreByChannel[activeChannel.id] : false}
+        loadingMoreMessages={loadingMore}
+        onLoadMoreMessages={loadMoreMessages}
         onSend={sendMessage}
         onEdit={editMessage}
         onDelete={deleteMessage}
@@ -279,6 +369,8 @@ export default function Main() {
         activeThreadParent={activeThreadParent}
         threadReplies={activeThreadId ? threadRepliesByParent[activeThreadId] || [] : []}
         onCloseThread={() => setActiveThreadId(null)}
+        onAddMembers={addMembersToChannel}
+        onLeaveChannel={leaveChannel}
       />
       {showNewGroup && (
         <NewGroupModal users={users} onCancel={() => setShowNewGroup(false)} onCreate={handleCreateGroup} />
@@ -291,6 +383,7 @@ export default function Main() {
           onSelectResult={jumpToSearchResult}
         />
       )}
+      {showAttendance && <AttendancePanel currentUser={user} onClose={() => setShowAttendance(false)} />}
     </div>
   );
 }

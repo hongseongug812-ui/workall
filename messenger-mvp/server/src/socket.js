@@ -154,4 +154,28 @@ function notifyChannelCreated(channel) {
   }
 }
 
-module.exports = { initSocket, notifyChannelCreated };
+// 그룹 채널 멤버 추가/탈퇴 후 소켓 룸 멤버십과 클라이언트 상태를 동기화한다.
+function notifyMembersChanged(channelId, { joinedUserIds = [], leftUserId } = {}) {
+  if (!io) return;
+  for (const userId of joinedUserIds) {
+    io.sockets.sockets.forEach((socket) => {
+      if (socket.userId === userId) socket.join(channelRoom(channelId));
+    });
+    io.to(userRoom(userId)).emit("channel:new", { channelId });
+  }
+  if (leftUserId) {
+    io.sockets.sockets.forEach((socket) => {
+      if (socket.userId === leftUserId) socket.leave(channelRoom(channelId));
+    });
+    io.to(userRoom(leftUserId)).emit("channel:left", { channelId });
+  }
+  io.to(channelRoom(channelId)).emit("channel:updated", { channelId });
+}
+
+// 누군가 출근/퇴근 체크를 하면 전 사용자의 팀 현황판을 실시간으로 갱신한다.
+function notifyAttendanceChanged() {
+  if (!io) return;
+  io.emit("attendance:updated");
+}
+
+module.exports = { initSocket, notifyChannelCreated, notifyMembersChanged, notifyAttendanceChanged };

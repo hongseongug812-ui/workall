@@ -1,4 +1,4 @@
-import type { Attachment, Channel, Message, User } from "./types";
+import type { Attachment, Attendance, Channel, Message, TeamAttendanceEntry, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -53,10 +53,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ type: "group", name, memberIds }),
     }),
-  listMessages: (channelId: string) =>
-    request<{ messages: Message[] }>(`/api/channels/${channelId}/messages`),
+  listMessages: (channelId: string, opts?: { before?: string }) => {
+    const params = opts?.before ? `?before=${encodeURIComponent(opts.before)}` : "";
+    return request<{ messages: Message[] }>(`/api/channels/${channelId}/messages${params}`);
+  },
   markRead: (channelId: string) =>
     request<{ lastReadAt: string }>(`/api/channels/${channelId}/read`, { method: "POST" }),
+  addMembers: (channelId: string, memberIds: string[]) =>
+    request<{ channel: Channel }>(`/api/channels/${channelId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ memberIds }),
+    }),
+  leaveChannel: (channelId: string) =>
+    request<void>(`/api/channels/${channelId}/members/me`, { method: "DELETE" }),
   getThread: (channelId: string, messageId: string) =>
     request<{ parent: Message; replies: Message[] }>(
       `/api/channels/${channelId}/messages/${messageId}/thread`
@@ -76,6 +85,13 @@ export const api = {
     if (!res.ok) throw new ApiError(body.error || `업로드 실패 (${res.status})`, res.status);
     return body as Attachment;
   },
+  getTodayAttendance: () => request<{ attendance: Attendance | null }>("/api/attendance/today"),
+  checkIn: () => request<{ attendance: Attendance }>("/api/attendance/check-in", { method: "POST" }),
+  checkOut: () => request<{ attendance: Attendance }>("/api/attendance/check-out", { method: "POST" }),
+  getAttendanceHistory: (limit = 30) =>
+    request<{ history: Attendance[] }>(`/api/attendance/history?limit=${limit}`),
+  getTeamAttendanceToday: () =>
+    request<{ team: TeamAttendanceEntry[]; date: string }>("/api/attendance/team-today"),
 };
 
 export { ApiError, API_BASE };

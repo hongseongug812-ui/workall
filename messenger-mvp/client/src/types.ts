@@ -42,3 +42,19 @@ export interface Channel {
   lastMessage: { content: string; senderId: string; createdAt: string } | null;
   unreadCount: number;
 }
+
+export interface Attendance {
+  id: string;
+  userId: string;
+  date: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+}
+
+export interface TeamAttendanceEntry {
+  userId: string;
+  name: string;
+  department: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+}

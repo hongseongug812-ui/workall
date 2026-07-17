@@ -1,4 +1,5 @@
 import type { Channel, User } from "../types";
+import Icon from "./Icon";
 
 interface Props {
   currentUser: User;
@@ -10,6 +11,7 @@ interface Props {
   onSelectUser: (userId: string) => void;
   onNewGroup: () => void;
   onOpenSearch: () => void;
+  onOpenAttendance: () => void;
   onLogout: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
@@ -29,6 +31,7 @@ export default function Sidebar({
   onSelectUser,
   onNewGroup,
   onOpenSearch,
+  onOpenAttendance,
   onLogout,
   darkMode,
   onToggleDarkMode,
@@ -40,14 +43,23 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-brand">
+        <span className="sidebar-brand-mark">M</span>
+        <span className="sidebar-brand-name">Messenger</span>
+      </div>
       <div className="sidebar-me">
         <div className="avatar">{initials(currentUser.name)}</div>
         <div className="sidebar-me-info">
           <strong>{currentUser.name}</strong>
           <span>{currentUser.department}</span>
         </div>
-        <button className="icon-button" onClick={onToggleDarkMode} title={darkMode ? "라이트 모드" : "다크 모드"}>
-          {darkMode ? "☀️" : "🌙"}
+        <button
+          aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
+          className="icon-button"
+          onClick={onToggleDarkMode}
+          title={darkMode ? "라이트 모드" : "다크 모드"}
+        >
+          <Icon name={darkMode ? "sun" : "moon"} size={17} />
         </button>
         <button className="link-button" onClick={onLogout} title="로그아웃">
           로그아웃
@@ -56,7 +68,12 @@ export default function Sidebar({
 
       <div className="sidebar-search">
         <button className="sidebar-search-button" onClick={onOpenSearch}>
-          🔍 메시지 검색
+          <Icon name="search" size={17} />
+          <span>메시지 검색</span>
+        </button>
+        <button className="sidebar-search-button" onClick={onOpenAttendance}>
+          <Icon name="clock" size={17} />
+          <span>출퇴근</span>
         </button>
       </div>
 
@@ -64,7 +81,8 @@ export default function Sidebar({
         <div className="sidebar-section-header">
           <span>채널</span>
           <button className="link-button" onClick={onNewGroup}>
-            + 새 그룹
+            <Icon name="plus" size={14} />
+            새 그룹
           </button>
         </div>
         {channels.length === 0 && <p className="sidebar-empty">아직 대화가 없습니다.</p>}
@@ -74,6 +92,7 @@ export default function Sidebar({
               <button
                 className={`channel-item ${c.id === activeChannelId ? "active" : ""}`}
                 onClick={() => onSelectChannel(c.id)}
+                title={c.name}
               >
                 <span className="channel-name">
                   {c.type === "group" ? "# " : ""}
@@ -97,7 +116,7 @@ export default function Sidebar({
             <ul className="user-list">
               {members.map((u) => (
                 <li key={u.id}>
-                  <button className="user-item" onClick={() => onSelectUser(u.id)}>
+                  <button className="user-item" onClick={() => onSelectUser(u.id)} title={u.name}>
                     <span className={`presence-dot ${onlineUserIds.has(u.id) ? "online" : ""}`} />
                     {u.name}
                   </button>

@@ -33,6 +33,10 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={handleSubmit}>
+        <div className="auth-brand" aria-hidden="true">
+          <span className="auth-brand-mark">M</span>
+          <span>Messenger</span>
+        </div>
         <h1>사내 메신저</h1>
         <p className="auth-subtitle">
           {mode === "login" ? "계정으로 로그인하세요." : "새 계정을 만드세요."}
