@@ -1,4 +1,4 @@
-import type { Attachment, Attendance, Channel, Message, TeamAttendanceEntry, User } from "./types";
+import type { Attachment, Attendance, Channel, ChannelNote, ChecklistItem, Message, TeamAttendanceEntry, User } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -108,6 +108,27 @@ export const api = {
     request<{ history: Attendance[] }>(`/api/attendance/history?limit=${limit}`),
   getTeamAttendanceToday: () =>
     request<{ team: TeamAttendanceEntry[]; date: string }>("/api/attendance/team-today"),
+  getChannelNote: (channelId: string) =>
+    request<{ note: ChannelNote }>(`/api/channels/${channelId}/notes`),
+  setChannelNote: (channelId: string, content: string) =>
+    request<{ note: ChannelNote }>(`/api/channels/${channelId}/notes`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+  listChecklist: (channelId: string) =>
+    request<{ items: ChecklistItem[] }>(`/api/channels/${channelId}/checklist`),
+  addChecklistItem: (channelId: string, text: string) =>
+    request<{ item: ChecklistItem }>(`/api/channels/${channelId}/checklist`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  setChecklistItemDone: (channelId: string, itemId: string, done: boolean) =>
+    request<{ item: ChecklistItem }>(`/api/channels/${channelId}/checklist/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ done }),
+    }),
+  deleteChecklistItem: (channelId: string, itemId: string) =>
+    request<void>(`/api/channels/${channelId}/checklist/${itemId}`, { method: "DELETE" }),
 };
 
 export { ApiError, API_BASE };

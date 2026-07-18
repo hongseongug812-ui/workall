@@ -72,10 +72,26 @@ conn.exec(`
     UNIQUE (user_id, date)
   );
 
+  CREATE TABLE IF NOT EXISTS channel_notes (
+    channel_id TEXT PRIMARY KEY REFERENCES channels(id),
+    content TEXT NOT NULL DEFAULT '',
+    updated_by TEXT REFERENCES users(id),
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS channel_checklist_items (
+    id TEXT PRIMARY KEY,
+    channel_id TEXT NOT NULL REFERENCES channels(id),
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id);
   CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
   CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
+  CREATE INDEX IF NOT EXISTS idx_checklist_channel ON channel_checklist_items(channel_id, created_at);
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -557,6 +573,62 @@ function listTeamAttendanceForDate(date) {
   }));
 }
 
+// ---- Channel notes & checklist (채널 노트 / 체크리스트) ----
+
+function getChannelNote(channelId) {
+  const row = conn.prepare("SELECT * FROM channel_notes WHERE channel_id = ?").get(channelId);
+  if (!row) return { channelId, content: "", updatedBy: null, updatedAt: null };
+  return { channelId: row.channel_id, content: row.content, updatedBy: row.updated_by, updatedAt: row.updated_at };
+}
+
+function setChannelNote(channelId, userId, content) {
+  conn
+    .prepare(
+      `INSERT INTO channel_notes (channel_id, content, updated_by, updated_at) VALUES (?,?,?,?)
+       ON CONFLICT(channel_id) DO UPDATE SET content = excluded.content, updated_by = excluded.updated_by, updated_at = excluded.updated_at`
+    )
+    .run(channelId, content, userId, now());
+  return getChannelNote(channelId);
+}
+
+function serializeChecklistItem(row) {
+  return { id: row.id, channelId: row.channel_id, text: row.text, done: !!row.done, createdAt: row.created_at };
+}
+
+function listChecklistItems(channelId) {
+  return conn
+    .prepare("SELECT * FROM channel_checklist_items WHERE channel_id = ? ORDER BY created_at ASC")
+    .all(channelId)
+    .map(serializeChecklistItem);
+}
+
+function addChecklistItem(channelId, text) {
+  const item = { id: id(), channelId, text, createdAt: now() };
+  conn
+    .prepare("INSERT INTO channel_checklist_items (id, channel_id, text, created_at) VALUES (?,?,?,?)")
+    .run(item.id, item.channelId, item.text, item.createdAt);
+  return { id: item.id, channelId: item.channelId, text: item.text, done: false, createdAt: item.createdAt };
+}
+
+function setChecklistItemDone(itemId, done) {
+  const result = conn
+    .prepare("UPDATE channel_checklist_items SET done = ? WHERE id = ?")
+    .run(done ? 1 : 0, itemId);
+  if (result.changes === 0) return null;
+  const row = conn.prepare("SELECT * FROM channel_checklist_items WHERE id = ?").get(itemId);
+  return serializeChecklistItem(row);
+}
+
+function deleteChecklistItem(itemId) {
+  const result = conn.prepare("DELETE FROM channel_checklist_items WHERE id = ?").run(itemId);
+  return result.changes > 0;
+}
+
+function findChecklistItem(itemId) {
+  const row = conn.prepare("SELECT * FROM channel_checklist_items WHERE id = ?").get(itemId);
+  return row ? serializeChecklistItem(row) : null;
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -591,4 +663,11 @@ module.exports = {
   checkOut,
   listAttendanceHistory,
   listTeamAttendanceForDate,
+  getChannelNote,
+  setChannelNote,
+  listChecklistItems,
+  addChecklistItem,
+  setChecklistItemDone,
+  deleteChecklistItem,
+  findChecklistItem,
 };

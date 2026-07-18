@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
-import type { Attachment, Channel, Message, User, UserStatus } from "../types";
+import type { Attachment, Channel, ChannelNote, ChecklistItem, Message, User, UserStatus } from "../types";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import ThreadPanel from "./ThreadPanel";
 import ChannelMembersModal from "./ChannelMembersModal";
+import ChannelInfoPanel from "./ChannelInfoPanel";
 import Icon from "./Icon";
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   users: User[];
   messages: Message[];
   pinnedMessages: Message[];
+  channelNote: ChannelNote | undefined;
+  checklistItems: ChecklistItem[];
   onlineUserIds: Set<string>;
   statusesByUser: Record<string, UserStatus>;
   typingUserIds: Set<string>;
@@ -32,6 +35,10 @@ interface Props {
   onAddMembers: (channelId: string, memberIds: string[]) => Promise<void>;
   onLeaveChannel: (channelId: string) => Promise<void>;
   onSetMuted: (channelId: string, muted: boolean) => Promise<void>;
+  onNoteChange: (channelId: string, content: string) => void;
+  onAddChecklistItem: (channelId: string, text: string) => void;
+  onToggleChecklistItem: (channelId: string, itemId: string, done: boolean) => void;
+  onDeleteChecklistItem: (channelId: string, itemId: string) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = { online: "온라인", away: "자리비움", dnd: "방해금지" };
@@ -42,6 +49,8 @@ export default function ChatWindow({
   users,
   messages,
   pinnedMessages,
+  channelNote,
+  checklistItems,
   onlineUserIds,
   statusesByUser,
   typingUserIds,
@@ -61,9 +70,13 @@ export default function ChatWindow({
   onAddMembers,
   onLeaveChannel,
   onSetMuted,
+  onNoteChange,
+  onAddChecklistItem,
+  onToggleChecklistItem,
+  onDeleteChecklistItem,
 }: Props) {
   const [showMembers, setShowMembers] = useState(false);
-  const [showPinned, setShowPinned] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | null>(null);
   const dragDepthRef = useRef(0);
@@ -127,7 +140,15 @@ export default function ChatWindow({
     .map((id) => channel.members.find((m) => m.id === id)?.name)
     .filter(Boolean);
 
-  const memberName = (id: string) => channel.members.find((m) => m.id === id)?.name || "알 수 없음";
+  function handleOpenThread(messageId: string) {
+    setShowInfo(false);
+    onOpenThread(messageId);
+  }
+
+  function toggleInfoPanel() {
+    if (!showInfo) onCloseThread();
+    setShowInfo((v) => !v);
+  }
 
   return (
     <main className="chat-window">
@@ -152,15 +173,14 @@ export default function ChatWindow({
             <span className="chat-subtitle">{subtitle}</span>
           </div>
           <div className="chat-header-actions">
-            {pinnedMessages.length > 0 && (
-              <button
-                className="icon-button chat-header-button"
-                title="고정된 메시지"
-                onClick={() => setShowPinned((v) => !v)}
-              >
-                <Icon name="pin" size={15} /> {pinnedMessages.length}
-              </button>
-            )}
+            <button
+              className={`icon-button chat-header-button ${showInfo ? "active" : ""}`}
+              title="채널 정보"
+              onClick={toggleInfoPanel}
+            >
+              <Icon name="info" size={15} />
+              {pinnedMessages.length > 0 && <span>{pinnedMessages.length}</span>}
+            </button>
             <button
               className="icon-button chat-header-button"
               title={channel.muted ? "알림 켜기" : "알림 끄기"}
@@ -176,21 +196,6 @@ export default function ChatWindow({
           </div>
         </header>
 
-        {showPinned && pinnedMessages.length > 0 && (
-          <div className="pinned-bar">
-            {pinnedMessages.map((m) => (
-              <div key={m.id} className="pinned-item">
-                <Icon name="pin" size={13} />
-                <span className="pinned-item-sender">{memberName(m.senderId)}</span>
-                <span className="pinned-item-content">{m.content || (m.attachment ? `[파일] ${m.attachment.name}` : "")}</span>
-                <button className="link-button" onClick={() => onPin(m.id)}>
-                  고정 해제
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         <MessageList
           channel={channel}
           messages={messages}
@@ -198,7 +203,7 @@ export default function ChatWindow({
           onEdit={onEdit}
           onDelete={onDelete}
           onReact={onReact}
-          onOpenThread={onOpenThread}
+          onOpenThread={handleOpenThread}
           onPin={onPin}
           onForward={onForward}
           hasMore={hasMoreMessages}
@@ -232,6 +237,21 @@ export default function ChatWindow({
             onSend(channel.id, content, { parentMessageId: activeThreadParent.id, attachment })
           }
           onClose={onCloseThread}
+        />
+      )}
+
+      {showInfo && !activeThreadParent && (
+        <ChannelInfoPanel
+          channel={channel}
+          pinnedMessages={pinnedMessages}
+          note={channelNote}
+          checklistItems={checklistItems}
+          onClose={() => setShowInfo(false)}
+          onUnpin={onPin}
+          onNoteChange={(content) => onNoteChange(channel.id, content)}
+          onAddChecklistItem={(text) => onAddChecklistItem(channel.id, text)}
+          onToggleChecklistItem={(itemId, done) => onToggleChecklistItem(channel.id, itemId, done)}
+          onDeleteChecklistItem={(itemId) => onDeleteChecklistItem(channel.id, itemId)}
         />
       )}
 

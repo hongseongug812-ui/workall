@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { API_BASE } from "./api";
-import type { Attachment, Message, PresenceStatus } from "./types";
+import type { Attachment, ChannelNote, Message, PresenceStatus } from "./types";
 
 interface AckResponse {
   message?: Message;
@@ -24,6 +24,8 @@ interface ServerToClientEvents {
   "channel:updated": (payload: { channelId: string }) => void;
   "channel:left": (payload: { channelId: string }) => void;
   "channel:pinnedChanged": (payload: { channelId: string }) => void;
+  "channel:noteUpdated": (payload: { channelId: string; note: ChannelNote }) => void;
+  "channel:checklistUpdated": (payload: { channelId: string }) => void;
   "attendance:updated": () => void;
 }
 

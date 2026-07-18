@@ -81,3 +81,18 @@ export interface TeamAttendanceEntry {
   checkInAt: string | null;
   checkOutAt: string | null;
 }
+
+export interface ChannelNote {
+  channelId: string;
+  content: string;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+export interface ChecklistItem {
+  id: string;
+  channelId: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+}

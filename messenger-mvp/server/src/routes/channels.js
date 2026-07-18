@@ -2,7 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../auth");
 const { publicUser } = require("./auth");
-const { notifyChannelCreated, notifyMembersChanged } = require("../socket");
+const { notifyChannelCreated, notifyMembersChanged, notifyNoteUpdated, notifyChecklistUpdated } = require("../socket");
 
 const router = express.Router();
 
@@ -172,6 +172,59 @@ router.delete("/:id/members/me", requireAuth, requireMembership, (req, res) => {
   }
   db.removeMember(req.channel.id, req.userId);
   notifyMembersChanged(req.channel.id, { leftUserId: req.userId });
+  res.status(204).end();
+});
+
+// ---- 채널 노트 (공유 메모) ----
+
+router.get("/:id/notes", requireAuth, requireMembership, (req, res) => {
+  res.json({ note: db.getChannelNote(req.channel.id) });
+});
+
+router.put("/:id/notes", requireAuth, requireMembership, (req, res) => {
+  const { content } = req.body || {};
+  if (typeof content !== "string" || content.length > 4000) {
+    return res.status(400).json({ error: "노트 내용이 올바르지 않습니다." });
+  }
+  const note = db.setChannelNote(req.channel.id, req.userId, content);
+  notifyNoteUpdated(req.channel.id, note);
+  res.json({ note });
+});
+
+// ---- 채널 체크리스트 ----
+
+router.get("/:id/checklist", requireAuth, requireMembership, (req, res) => {
+  res.json({ items: db.listChecklistItems(req.channel.id) });
+});
+
+router.post("/:id/checklist", requireAuth, requireMembership, (req, res) => {
+  const { text } = req.body || {};
+  if (typeof text !== "string" || !text.trim() || text.length > 200) {
+    return res.status(400).json({ error: "할 일 내용을 입력하세요." });
+  }
+  const item = db.addChecklistItem(req.channel.id, text.trim());
+  notifyChecklistUpdated(req.channel.id);
+  res.status(201).json({ item });
+});
+
+router.patch("/:id/checklist/:itemId", requireAuth, requireMembership, (req, res) => {
+  const existing = db.findChecklistItem(req.params.itemId);
+  if (!existing || existing.channelId !== req.channel.id) {
+    return res.status(404).json({ error: "항목을 찾을 수 없습니다." });
+  }
+  const { done } = req.body || {};
+  const item = db.setChecklistItemDone(req.params.itemId, !!done);
+  notifyChecklistUpdated(req.channel.id);
+  res.json({ item });
+});
+
+router.delete("/:id/checklist/:itemId", requireAuth, requireMembership, (req, res) => {
+  const existing = db.findChecklistItem(req.params.itemId);
+  if (!existing || existing.channelId !== req.channel.id) {
+    return res.status(404).json({ error: "항목을 찾을 수 없습니다." });
+  }
+  db.deleteChecklistItem(req.params.itemId);
+  notifyChecklistUpdated(req.channel.id);
   res.status(204).end();
 });
 

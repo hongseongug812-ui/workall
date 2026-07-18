@@ -11,12 +11,6 @@ interface Props {
   onSelectChannel: (channelId: string) => void;
   onSelectUser: (userId: string) => void;
   onNewGroup: () => void;
-  onOpenSearch: () => void;
-  onOpenAttendance: () => void;
-  onOpenProfile: () => void;
-  onLogout: () => void;
-  darkMode: boolean;
-  onToggleDarkMode: () => void;
   myStatus: UserStatus;
   onChangeStatus: (status: PresenceStatus, statusMessage: string | null) => void;
   onToggleFavorite: (channelId: string, favorite: boolean) => void;
@@ -35,12 +29,6 @@ export default function Sidebar({
   onSelectChannel,
   onSelectUser,
   onNewGroup,
-  onOpenSearch,
-  onOpenAttendance,
-  onOpenProfile,
-  onLogout,
-  darkMode,
-  onToggleDarkMode,
   myStatus,
   onChangeStatus,
   onToggleFavorite,
@@ -92,35 +80,11 @@ export default function Sidebar({
         <span className="sidebar-brand-name">Messenger</span>
       </div>
       <div className="sidebar-me">
-        <button className="avatar avatar-button" onClick={onOpenProfile} title="내 정보">
-          {initials(currentUser.name)}
-        </button>
+        <span className="avatar">{initials(currentUser.name)}</span>
         <div className="sidebar-me-info">
           <strong>{currentUser.name}</strong>
           <StatusPicker status={myStatus} onChange={onChangeStatus} />
         </div>
-        <button
-          aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
-          className="icon-button"
-          onClick={onToggleDarkMode}
-          title={darkMode ? "라이트 모드" : "다크 모드"}
-        >
-          <Icon name={darkMode ? "sun" : "moon"} size={17} />
-        </button>
-        <button className="link-button" onClick={onLogout} title="로그아웃">
-          로그아웃
-        </button>
-      </div>
-
-      <div className="sidebar-search">
-        <button className="sidebar-search-button" onClick={onOpenSearch}>
-          <Icon name="search" size={17} />
-          <span>메시지 검색</span>
-        </button>
-        <button className="sidebar-search-button" onClick={onOpenAttendance}>
-          <Icon name="clock" size={17} />
-          <span>출퇴근</span>
-        </button>
       </div>
 
       {favorites.length > 0 && (

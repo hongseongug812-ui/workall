@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
 import { getSocket } from "../socket";
-import type { Attachment, Channel, Message, PresenceStatus, User, UserStatus } from "../types";
+import type { Attachment, Channel, ChannelNote, ChecklistItem, Message, PresenceStatus, User, UserStatus } from "../types";
 import Sidebar from "../components/Sidebar";
+import IconRail from "../components/IconRail";
 import ChatWindow from "../components/ChatWindow";
 import NewGroupModal from "../components/NewGroupModal";
 import SearchPanel from "../components/SearchPanel";
@@ -32,6 +33,8 @@ export default function Main() {
   const [showProfile, setShowProfile] = useState(false);
   const [statusesByUser, setStatusesByUser] = useState<Record<string, UserStatus>>({});
   const [pinnedByChannel, setPinnedByChannel] = useState<Record<string, Message[]>>({});
+  const [notesByChannel, setNotesByChannel] = useState<Record<string, ChannelNote>>({});
+  const [checklistByChannel, setChecklistByChannel] = useState<Record<string, ChecklistItem[]>>({});
   const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
   const activeChannelIdRef = useRef<string | null>(null);
@@ -209,6 +212,16 @@ export default function Main() {
       });
     });
 
+    socket.on("channel:noteUpdated", ({ channelId, note }) => {
+      setNotesByChannel((prev) => ({ ...prev, [channelId]: note }));
+    });
+
+    socket.on("channel:checklistUpdated", ({ channelId }) => {
+      api.listChecklist(channelId).then(({ items }) => {
+        setChecklistByChannel((prev) => ({ ...prev, [channelId]: items }));
+      });
+    });
+
     return () => {
       socket.off("presence:snapshot");
       socket.off("presence:update");
@@ -220,6 +233,8 @@ export default function Main() {
       socket.off("channel:updated");
       socket.off("channel:left");
       socket.off("channel:pinnedChanged");
+      socket.off("channel:noteUpdated");
+      socket.off("channel:checklistUpdated");
     };
   }, [user, refreshChannels, patchMessage, notifyIfBackground]);
 
@@ -237,11 +252,21 @@ export default function Main() {
           setPinnedByChannel((prev) => ({ ...prev, [channelId]: messages }));
         });
       }
+      if (!notesByChannel[channelId]) {
+        api.getChannelNote(channelId).then(({ note }) => {
+          setNotesByChannel((prev) => ({ ...prev, [channelId]: note }));
+        });
+      }
+      if (!checklistByChannel[channelId]) {
+        api.listChecklist(channelId).then(({ items }) => {
+          setChecklistByChannel((prev) => ({ ...prev, [channelId]: items }));
+        });
+      }
       setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c)));
       api.markRead(channelId).catch(() => {});
       getSocket().emit("channel:read", { channelId });
     },
-    [messagesByChannel, pinnedByChannel]
+    [messagesByChannel, pinnedByChannel, notesByChannel, checklistByChannel]
   );
 
   const loadMoreMessages = useCallback(async () => {
@@ -331,6 +356,32 @@ export default function Main() {
     setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, favorite } : c)));
   }, []);
 
+  const updateChannelNote = useCallback(async (channelId: string, content: string) => {
+    const { note } = await api.setChannelNote(channelId, content);
+    setNotesByChannel((prev) => ({ ...prev, [channelId]: note }));
+  }, []);
+
+  const addChecklistItem = useCallback(async (channelId: string, text: string) => {
+    const { item } = await api.addChecklistItem(channelId, text);
+    setChecklistByChannel((prev) => ({ ...prev, [channelId]: [...(prev[channelId] || []), item] }));
+  }, []);
+
+  const toggleChecklistItem = useCallback(async (channelId: string, itemId: string, done: boolean) => {
+    const { item } = await api.setChecklistItemDone(channelId, itemId, done);
+    setChecklistByChannel((prev) => ({
+      ...prev,
+      [channelId]: (prev[channelId] || []).map((i) => (i.id === itemId ? item : i)),
+    }));
+  }, []);
+
+  const deleteChecklistItem = useCallback(async (channelId: string, itemId: string) => {
+    await api.deleteChecklistItem(channelId, itemId);
+    setChecklistByChannel((prev) => ({
+      ...prev,
+      [channelId]: (prev[channelId] || []).filter((i) => i.id !== itemId),
+    }));
+  }, []);
+
   const forwardMessage = useCallback((messageId: string, targetChannelIds: string[]) => {
     return new Promise<void>((resolve, reject) => {
       getSocket().emit("message:forward", { messageId, targetChannelIds }, (res) => {
@@ -391,6 +442,16 @@ export default function Main() {
 
   return (
     <div className="app-shell">
+      <IconRail
+        currentUser={user}
+        myStatus={(statusesByUser[user.id] || DEFAULT_STATUS).status}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((v) => !v)}
+        onOpenSearch={() => setShowSearch(true)}
+        onOpenAttendance={() => setShowAttendance(true)}
+        onOpenProfile={() => setShowProfile(true)}
+        onLogout={logout}
+      />
       <Sidebar
         currentUser={user}
         channels={channels}
@@ -400,12 +461,6 @@ export default function Main() {
         onSelectChannel={openChannel}
         onSelectUser={openDmWith}
         onNewGroup={() => setShowNewGroup(true)}
-        onOpenSearch={() => setShowSearch(true)}
-        onOpenAttendance={() => setShowAttendance(true)}
-        onOpenProfile={() => setShowProfile(true)}
-        onLogout={logout}
-        darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode((v) => !v)}
         myStatus={statusesByUser[user.id] || DEFAULT_STATUS}
         onChangeStatus={changeStatus}
         onToggleFavorite={setChannelFavorite}
@@ -416,6 +471,8 @@ export default function Main() {
         users={users}
         messages={activeChannel ? messagesByChannel[activeChannel.id] || [] : []}
         pinnedMessages={activeChannel ? pinnedByChannel[activeChannel.id] || [] : []}
+        channelNote={activeChannel ? notesByChannel[activeChannel.id] : undefined}
+        checklistItems={activeChannel ? checklistByChannel[activeChannel.id] || [] : []}
         onlineUserIds={onlineUserIds}
         statusesByUser={statusesByUser}
         typingUserIds={activeChannel ? typingUsersByChannel[activeChannel.id] || new Set() : new Set()}
@@ -435,6 +492,10 @@ export default function Main() {
         onAddMembers={addMembersToChannel}
         onLeaveChannel={leaveChannel}
         onSetMuted={setChannelMuted}
+        onNoteChange={updateChannelNote}
+        onAddChecklistItem={addChecklistItem}
+        onToggleChecklistItem={toggleChecklistItem}
+        onDeleteChecklistItem={deleteChecklistItem}
       />
       {showNewGroup && (
         <NewGroupModal users={users} onCancel={() => setShowNewGroup(false)} onCreate={handleCreateGroup} />

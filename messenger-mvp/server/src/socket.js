@@ -245,4 +245,22 @@ function notifyAttendanceChanged() {
   io.emit("attendance:updated");
 }
 
-module.exports = { initSocket, notifyChannelCreated, notifyMembersChanged, notifyAttendanceChanged };
+// 채널 노트/체크리스트가 바뀌면 같은 채널을 보고 있는 다른 멤버 화면도 즉시 갱신한다.
+function notifyNoteUpdated(channelId, note) {
+  if (!io) return;
+  io.to(channelRoom(channelId)).emit("channel:noteUpdated", { channelId, note });
+}
+
+function notifyChecklistUpdated(channelId) {
+  if (!io) return;
+  io.to(channelRoom(channelId)).emit("channel:checklistUpdated", { channelId });
+}
+
+module.exports = {
+  initSocket,
+  notifyChannelCreated,
+  notifyMembersChanged,
+  notifyAttendanceChanged,
+  notifyNoteUpdated,
+  notifyChecklistUpdated,
+};
