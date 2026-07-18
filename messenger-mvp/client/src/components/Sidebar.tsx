@@ -19,6 +19,7 @@ interface Props {
   onToggleDarkMode: () => void;
   myStatus: UserStatus;
   onChangeStatus: (status: PresenceStatus, statusMessage: string | null) => void;
+  onToggleFavorite: (channelId: string, favorite: boolean) => void;
 }
 
 function initials(name: string) {
@@ -42,11 +43,47 @@ export default function Sidebar({
   onToggleDarkMode,
   myStatus,
   onChangeStatus,
+  onToggleFavorite,
 }: Props) {
   const grouped = users.reduce<Record<string, User[]>>((acc, u) => {
     (acc[u.department] ||= []).push(u);
     return acc;
   }, {});
+
+  const favorites = channels.filter((c) => c.favorite);
+  const rest = channels.filter((c) => !c.favorite);
+
+  function renderChannel(c: Channel) {
+    return (
+      <li key={c.id}>
+        <button
+          className={`channel-item ${c.id === activeChannelId ? "active" : ""}`}
+          onClick={() => onSelectChannel(c.id)}
+          title={c.name}
+        >
+          <span className="channel-name">
+            {c.type === "group" ? "# " : ""}
+            {c.name}
+          </span>
+          {c.lastMessage && <span className="channel-preview">{c.lastMessage.content}</span>}
+          {c.muted && <Icon name="bellOff" size={13} className="channel-muted-icon" />}
+          {c.unreadCount > 0 && <span className="badge">{c.unreadCount}</span>}
+          <span
+            className={`channel-favorite-toggle ${c.favorite ? "active" : ""}`}
+            role="button"
+            tabIndex={0}
+            title={c.favorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(c.id, !c.favorite);
+            }}
+          >
+            <Icon name="star" size={13} />
+          </span>
+        </button>
+      </li>
+    );
+  }
 
   return (
     <aside className="sidebar">
@@ -86,6 +123,17 @@ export default function Sidebar({
         </button>
       </div>
 
+      {favorites.length > 0 && (
+        <div className="sidebar-section">
+          <div className="sidebar-section-header">
+            <span>
+              <Icon name="star" size={12} /> 즐겨찾기
+            </span>
+          </div>
+          <ul className="channel-list">{favorites.map(renderChannel)}</ul>
+        </div>
+      )}
+
       <div className="sidebar-section">
         <div className="sidebar-section-header">
           <span>채널</span>
@@ -95,25 +143,7 @@ export default function Sidebar({
           </button>
         </div>
         {channels.length === 0 && <p className="sidebar-empty">아직 대화가 없습니다.</p>}
-        <ul className="channel-list">
-          {channels.map((c) => (
-            <li key={c.id}>
-              <button
-                className={`channel-item ${c.id === activeChannelId ? "active" : ""}`}
-                onClick={() => onSelectChannel(c.id)}
-                title={c.name}
-              >
-                <span className="channel-name">
-                  {c.type === "group" ? "# " : ""}
-                  {c.name}
-                </span>
-                {c.lastMessage && <span className="channel-preview">{c.lastMessage.content}</span>}
-                {c.muted && <Icon name="bellOff" size={13} className="channel-muted-icon" />}
-                {c.unreadCount > 0 && <span className="badge">{c.unreadCount}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <ul className="channel-list">{rest.map(renderChannel)}</ul>
       </div>
 
       <div className="sidebar-section">

@@ -35,6 +35,10 @@ interface ClientToServerEvents {
   "message:edit": (payload: { messageId: string; content: string }, ack: (res: AckResponse) => void) => void;
   "message:delete": (payload: { messageId: string }, ack: (res: AckResponse) => void) => void;
   "message:pin": (payload: { messageId: string }, ack: (res: AckResponse) => void) => void;
+  "message:forward": (
+    payload: { messageId: string; targetChannelIds: string[] },
+    ack: (res: { messages?: Message[]; error?: string }) => void
+  ) => void;
   "reaction:toggle": (payload: { messageId: string; emoji: string }, ack: (res: AckResponse) => void) => void;
   "typing": (payload: { channelId: string; isTyping: boolean }) => void;
   "channel:read": (payload: { channelId: string }) => void;

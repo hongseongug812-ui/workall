@@ -9,6 +9,7 @@ import NewGroupModal from "../components/NewGroupModal";
 import SearchPanel from "../components/SearchPanel";
 import AttendancePanel from "../components/AttendancePanel";
 import ProfileModal from "../components/ProfileModal";
+import ForwardModal from "../components/ForwardModal";
 
 const MESSAGE_PAGE_SIZE = 50;
 const DEFAULT_STATUS: UserStatus = { status: "online", statusMessage: null };
@@ -31,6 +32,7 @@ export default function Main() {
   const [showProfile, setShowProfile] = useState(false);
   const [statusesByUser, setStatusesByUser] = useState<Record<string, UserStatus>>({});
   const [pinnedByChannel, setPinnedByChannel] = useState<Record<string, Message[]>>({});
+  const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
@@ -324,6 +326,20 @@ export default function Main() {
     setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, muted } : c)));
   }, []);
 
+  const setChannelFavorite = useCallback(async (channelId: string, favorite: boolean) => {
+    await api.setFavorite(channelId, favorite);
+    setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, favorite } : c)));
+  }, []);
+
+  const forwardMessage = useCallback((messageId: string, targetChannelIds: string[]) => {
+    return new Promise<void>((resolve, reject) => {
+      getSocket().emit("message:forward", { messageId, targetChannelIds }, (res) => {
+        if (res.error) reject(new Error(res.error));
+        else resolve();
+      });
+    });
+  }, []);
+
   const changeStatus = useCallback((status: PresenceStatus, statusMessage: string | null) => {
     if (!user) return;
     setStatusesByUser((prev) => ({ ...prev, [user.id]: { status, statusMessage } }));
@@ -392,6 +408,7 @@ export default function Main() {
         onToggleDarkMode={() => setDarkMode((v) => !v)}
         myStatus={statusesByUser[user.id] || DEFAULT_STATUS}
         onChangeStatus={changeStatus}
+        onToggleFavorite={setChannelFavorite}
       />
       <ChatWindow
         currentUser={user}
@@ -410,6 +427,7 @@ export default function Main() {
         onDelete={deleteMessage}
         onReact={toggleReaction}
         onPin={togglePin}
+        onForward={setForwardMessageId}
         onOpenThread={openThread}
         activeThreadParent={activeThreadParent}
         threadReplies={activeThreadId ? threadRepliesByParent[activeThreadId] || [] : []}
@@ -432,6 +450,16 @@ export default function Main() {
       {showAttendance && <AttendancePanel currentUser={user} onClose={() => setShowAttendance(false)} />}
       {showProfile && (
         <ProfileModal currentUser={user} onClose={() => setShowProfile(false)} onUpdated={updateUser} />
+      )}
+      {forwardMessageId && (
+        <ForwardModal
+          channels={channels}
+          onClose={() => setForwardMessageId(null)}
+          onForward={async (targetChannelIds) => {
+            await forwardMessage(forwardMessageId, targetChannelIds);
+            setForwardMessageId(null);
+          }}
+        />
       )}
     </div>
   );

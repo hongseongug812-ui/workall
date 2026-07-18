@@ -81,6 +81,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ muted }),
     }),
+  setFavorite: (channelId: string, favorite: boolean) =>
+    request<{ favorite: boolean }>(`/api/channels/${channelId}/favorite`, {
+      method: "POST",
+      body: JSON.stringify({ favorite }),
+    }),
   search: (query: string, channelId?: string) => {
     const params = new URLSearchParams({ q: query });
     if (channelId) params.set("channelId", channelId);

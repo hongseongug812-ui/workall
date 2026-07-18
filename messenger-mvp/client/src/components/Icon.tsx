@@ -3,7 +3,7 @@ import type { SVGProps } from "react";
 export type IconName =
   | "attach" | "close" | "edit" | "file" | "message" | "moon" | "plus"
   | "search" | "send" | "smile" | "sparkles" | "sun" | "trash" | "users" | "bell" | "clock"
-  | "pin" | "bellOff" | "lock" | "user";
+  | "pin" | "bellOff" | "lock" | "user" | "star" | "forward" | "check" | "checkDouble" | "image";
 
 interface Props extends Omit<SVGProps<SVGSVGElement>, "name"> {
   name: IconName;
@@ -32,6 +32,11 @@ export default function Icon({ name, size = 18, className = "", ...props }: Prop
     bellOff: <><path d="M8.7 3.7A6 6 0 0 1 18 8c0 3.5.9 5.8 1.7 7.2M6.3 6.3C6.1 6.8 6 7.4 6 8c0 7-3 9-3 9h13" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M2 2l20 20" /></>,
     lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
+    star: <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z" />,
+    forward: <><path d="m15 6 6 6-6 6" /><path d="M3 12h18" /></>,
+    check: <path d="M20 6 9 17l-5-5" />,
+    checkDouble: <><path d="m2 12 4 4L15 7" /><path d="m9 16 1 1L21 7" /></>,
+    image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="1.5" /><path d="m21 15-5-5-9 9" /></>,
   };
 
   return (

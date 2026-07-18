@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { DragEvent } from "react";
 import type { Attachment, Channel, Message, User, UserStatus } from "../types";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
@@ -23,6 +24,7 @@ interface Props {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onPin: (messageId: string) => void;
+  onForward: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;
   activeThreadParent: Message | null;
   threadReplies: Message[];
@@ -51,6 +53,7 @@ export default function ChatWindow({
   onDelete,
   onReact,
   onPin,
+  onForward,
   onOpenThread,
   activeThreadParent,
   threadReplies,
@@ -61,6 +64,36 @@ export default function ChatWindow({
 }: Props) {
   const [showMembers, setShowMembers] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const dragDepthRef = useRef(0);
+
+  function handleDragEnter(e: DragEvent<HTMLDivElement>) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    setDragActive(true);
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+  }
+
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setDragActive(false);
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragDepthRef.current = 0;
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) setDroppedFile(file);
+  }
 
   if (!channel) {
     return (
@@ -98,7 +131,21 @@ export default function ChatWindow({
 
   return (
     <main className="chat-window">
-      <div className="chat-main">
+      <div
+        className={`chat-main ${dragActive ? "drag-active" : ""}`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive && (
+          <div className="drop-overlay">
+            <span className="drop-overlay-label">
+              <Icon name="attach" size={28} />
+              여기에 파일을 놓아 첨부하세요
+            </span>
+          </div>
+        )}
         <header className="chat-header">
           <div>
             <h2>{channel.type === "group" ? `# ${channel.name}` : channel.name}</h2>
@@ -153,6 +200,7 @@ export default function ChatWindow({
           onReact={onReact}
           onOpenThread={onOpenThread}
           onPin={onPin}
+          onForward={onForward}
           hasMore={hasMoreMessages}
           loadingMore={loadingMoreMessages}
           onLoadMore={onLoadMoreMessages}
@@ -166,6 +214,8 @@ export default function ChatWindow({
           channelId={channel.id}
           members={channel.members}
           onSend={(content, attachment) => onSend(channel.id, content, { attachment })}
+          externalFile={droppedFile}
+          onExternalFileConsumed={() => setDroppedFile(null)}
         />
       </div>
 

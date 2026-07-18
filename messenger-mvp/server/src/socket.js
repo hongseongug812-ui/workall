@@ -162,6 +162,40 @@ function initSocket(httpServer, corsOrigin) {
       reply({ message: result.message });
     });
 
+    socket.on("message:forward", ({ messageId, targetChannelIds }, ack) => {
+      const reply = typeof ack === "function" ? ack : () => {};
+      if (typeof messageId !== "string" || !Array.isArray(targetChannelIds) || targetChannelIds.length === 0) {
+        return reply({ error: "잘못된 요청입니다." });
+      }
+      const source = db.getMessageById(messageId, userId);
+      if (!source) return reply({ error: "원본 메시지를 찾을 수 없습니다." });
+      const sourceChannel = db.findChannelById(source.channelId);
+      if (!sourceChannel || !db.isMember(sourceChannel, userId)) {
+        return reply({ error: "이 메시지를 전달할 권한이 없습니다." });
+      }
+      if (!source.content && !source.attachment) {
+        return reply({ error: "삭제된 메시지는 전달할 수 없습니다." });
+      }
+
+      const forwarded = [];
+      for (const targetId of new Set(targetChannelIds.filter((id) => typeof id === "string"))) {
+        const targetChannel = db.findChannelById(targetId);
+        if (!targetChannel || !db.isMember(targetChannel, userId)) continue;
+        const message = db.createMessage({
+          channelId: targetId,
+          senderId: userId,
+          content: source.content,
+          attachment: source.attachment,
+          forwardedFromMessageId: source.id,
+        });
+        io.to(channelRoom(targetId)).emit("message:new", message);
+        forwarded.push(message);
+      }
+
+      if (forwarded.length === 0) return reply({ error: "전달할 수 있는 채널이 없습니다." });
+      reply({ messages: forwarded });
+    });
+
     socket.on("disconnect", () => {
       const sockets = onlineSockets.get(userId);
       if (!sockets) return;

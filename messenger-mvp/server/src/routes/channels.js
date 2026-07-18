@@ -32,6 +32,8 @@ function serializeChannel(channel, viewerId) {
       : null,
     unreadCount: db.unreadCount(channel, viewerId),
     muted: !!viewerMembership?.muted,
+    favorite: !!viewerMembership?.favorite,
+    readReceipts: channel.members.map((m) => ({ userId: m.userId, lastReadAt: m.lastReadAt })),
   };
 }
 
@@ -138,6 +140,12 @@ router.post("/:id/mute", requireAuth, requireMembership, (req, res) => {
   const { muted } = req.body || {};
   db.setMuted(req.channel.id, req.userId, !!muted);
   res.json({ muted: !!muted });
+});
+
+router.post("/:id/favorite", requireAuth, requireMembership, (req, res) => {
+  const { favorite } = req.body || {};
+  db.setFavorite(req.channel.id, req.userId, !!favorite);
+  res.json({ favorite: !!favorite });
 });
 
 router.post("/:id/members", requireAuth, requireMembership, (req, res) => {

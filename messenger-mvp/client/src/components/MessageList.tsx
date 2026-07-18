@@ -17,6 +17,7 @@ interface Props {
   onReact: (messageId: string, emoji: string) => void;
   onOpenThread?: (messageId: string) => void;
   onPin?: (messageId: string) => void;
+  onForward?: (messageId: string) => void;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -43,6 +44,7 @@ export default function MessageList({
   onReact,
   onOpenThread,
   onPin,
+  onForward,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -111,13 +113,18 @@ export default function MessageList({
         </div>
       )}
       {messages.length === 0 && <p className="message-empty">아직 메시지가 없습니다. 첫 메시지를 보내보세요.</p>}
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         const mine = m.senderId === currentUserId;
         const date = formatDate(m.createdAt);
         const showDateDivider = date !== lastDate;
         lastDate = date;
         const deleted = !!m.deletedAt;
         const isEditing = editingId === m.id;
+        const isLastMessage = idx === messages.length - 1;
+        const unreadBy = channel.readReceipts.filter(
+          (r) => r.userId !== currentUserId && r.lastReadAt < m.createdAt
+        ).length;
+        const forwardOriginName = m.forwardedFrom ? memberName(m.forwardedFrom.senderId) : null;
 
         return (
           <div key={m.id}>
@@ -129,6 +136,14 @@ export default function MessageList({
                 {m.pinnedAt && (
                   <div className="pinned-badge">
                     <Icon name="pin" size={11} /> 고정됨
+                  </div>
+                )}
+                {m.forwardedFrom && (
+                  <div className="forwarded-badge">
+                    <Icon name="forward" size={11} />
+                    {forwardOriginName && forwardOriginName !== "알 수 없음"
+                      ? `${forwardOriginName}님으로부터 전달됨`
+                      : "전달된 메시지"}
                   </div>
                 )}
 
@@ -191,6 +206,9 @@ export default function MessageList({
 
                 {!deleted && !isEditing && (
                   <div className="message-meta-row">
+                    {mine && isLastMessage && (
+                      <span className="read-receipt">{unreadBy === 0 ? "읽음" : unreadBy}</span>
+                    )}
                     <span className="message-time">{formatTime(m.createdAt)}</span>
                     {m.editedAt && <span className="message-edited">(수정됨)</span>}
                   </div>
@@ -250,6 +268,11 @@ export default function MessageList({
                     {onPin && (
                       <button title={m.pinnedAt ? "고정 해제" : "메시지 고정"} onClick={() => onPin(m.id)}>
                         <Icon name="pin" size={15} />
+                      </button>
+                    )}
+                    {onForward && (
+                      <button title="다른 채널로 전달" onClick={() => onForward(m.id)}>
+                        <Icon name="forward" size={15} />
                       </button>
                     )}
                     {mine && (

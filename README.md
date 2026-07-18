@@ -35,6 +35,17 @@
 
 </div>
 
+![Messenger product showcase](./docs/readme/messenger-hero.png)
+
+<div align="center">
+
+<sub>REAL-TIME TEAM COMMUNICATION · THREADS · FILES · ATTENDANCE</sub>
+
+<br />
+<br />
+
+</div>
+
 ---
 
 <div align="center">

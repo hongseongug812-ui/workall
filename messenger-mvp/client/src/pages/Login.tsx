@@ -2,10 +2,16 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api";
+import Icon from "../components/Icon";
 
-export default function Login() {
+interface Props {
+  initialMode?: "login" | "register";
+  onBack?: () => void;
+}
+
+export default function Login({ initialMode = "login", onBack }: Props) {
   const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -32,9 +38,16 @@ export default function Login() {
 
   return (
     <div className="auth-screen">
+      {onBack && (
+        <button className="auth-back-button" onClick={onBack}>
+          <Icon name="close" size={13} /> 처음으로
+        </button>
+      )}
       <form className="auth-card" onSubmit={handleSubmit}>
         <div className="auth-brand" aria-hidden="true">
-          <span className="auth-brand-mark">M</span>
+          <span className="auth-brand-mark">
+            <Icon name="message" size={16} />
+          </span>
           <span>Messenger</span>
         </div>
         <h1>사내 메신저</h1>

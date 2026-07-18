@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 import { getSocket } from "../socket";
 import { api } from "../api";
 import type { Attachment, User } from "../types";
@@ -9,13 +9,15 @@ interface Props {
   channelId: string;
   members: User[];
   onSend: (content: string, attachment?: Attachment) => Promise<void>;
+  externalFile?: File | null;
+  onExternalFileConsumed?: () => void;
 }
 
 const TYPING_STOP_DELAY = 2000;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MENTION_RE = /(?:^|\s)@([^\s@]*)$/;
 
-export default function MessageInput({ channelId, members, onSend }: Props) {
+export default function MessageInput({ channelId, members, onSend, externalFile, onExternalFileConsumed }: Props) {
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -83,10 +85,7 @@ export default function MessageInput({ channelId, members, onSend }: Props) {
     });
   }
 
-  function handleFilePick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  function acceptFile(file: File) {
     if (file.size > MAX_FILE_SIZE) {
       setError("파일이 너무 큽니다 (최대 20MB).");
       return;
@@ -94,6 +93,29 @@ export default function MessageInput({ channelId, members, onSend }: Props) {
     setError(null);
     setPendingFile(file);
   }
+
+  function handleFilePick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) acceptFile(file);
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const item = [...e.clipboardData.items].find((it) => it.kind === "file");
+    if (!item) return;
+    const file = item.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    acceptFile(file);
+  }
+
+  // 채팅창 전체 영역에 드래그로 떨어뜨린 파일을 받는다 (ChatWindow에서 전달).
+  useEffect(() => {
+    if (!externalFile) return;
+    acceptFile(externalFile);
+    onExternalFileConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalFile]);
 
   async function submit() {
     const content = value.trim();
@@ -198,7 +220,8 @@ export default function MessageInput({ channelId, members, onSend }: Props) {
             onChange={(e) => handleChange(e.target.value, e.target.selectionStart)}
             onKeyDown={handleKeyDown}
             onBlur={stopTyping}
-            placeholder="메시지를 입력하세요 (@이름으로 멘션, Enter로 전송, Shift+Enter로 줄바꿈)"
+            onPaste={handlePaste}
+            placeholder="메시지를 입력하세요 (@이름으로 멘션, Enter로 전송, Shift+Enter로 줄바꿈, 파일 붙여넣기 가능)"
             rows={2}
           />
         </div>

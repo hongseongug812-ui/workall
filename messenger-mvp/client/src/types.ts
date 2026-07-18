@@ -19,6 +19,12 @@ export interface Reaction {
   reactedByMe: boolean;
 }
 
+export interface ForwardedFrom {
+  messageId: string;
+  senderId: string;
+  channelId: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -30,8 +36,14 @@ export interface Message {
   editedAt: string | null;
   deletedAt: string | null;
   pinnedAt: string | null;
+  forwardedFrom: ForwardedFrom | null;
   replyCount: number;
   reactions: Reaction[];
+}
+
+export interface ReadReceipt {
+  userId: string;
+  lastReadAt: string;
 }
 
 export interface Channel {
@@ -43,6 +55,8 @@ export interface Channel {
   lastMessage: { content: string; senderId: string; createdAt: string } | null;
   unreadCount: number;
   muted: boolean;
+  favorite: boolean;
+  readReceipts: ReadReceipt[];
 }
 
 export type PresenceStatus = "online" | "away" | "dnd";

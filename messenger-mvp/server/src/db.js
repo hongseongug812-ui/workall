@@ -88,6 +88,8 @@ function ensureColumn(table, column, definition) {
 }
 ensureColumn("channel_members", "muted", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("messages", "pinned_at", "TEXT");
+ensureColumn("channel_members", "favorite", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("messages", "forwarded_from_message_id", "TEXT");
 
 function id() {
   return crypto.randomUUID();
@@ -158,9 +160,14 @@ function updateUserPassword(userId, passwordHash) {
 
 function serializeChannelRow(row) {
   const members = conn
-    .prepare("SELECT user_id, last_read_at, muted FROM channel_members WHERE channel_id = ?")
+    .prepare("SELECT user_id, last_read_at, muted, favorite FROM channel_members WHERE channel_id = ?")
     .all(row.id)
-    .map((m) => ({ userId: m.user_id, lastReadAt: m.last_read_at, muted: !!m.muted }));
+    .map((m) => ({
+      userId: m.user_id,
+      lastReadAt: m.last_read_at,
+      muted: !!m.muted,
+      favorite: !!m.favorite,
+    }));
   return {
     id: row.id,
     type: row.type,
@@ -262,6 +269,13 @@ function setMuted(channelId, userId, muted) {
   return result.changes > 0;
 }
 
+function setFavorite(channelId, userId, favorite) {
+  const result = conn
+    .prepare("UPDATE channel_members SET favorite = ? WHERE channel_id = ? AND user_id = ?")
+    .run(favorite ? 1 : 0, channelId, userId);
+  return result.changes > 0;
+}
+
 // ---- Messages ----
 
 function serializeMessageRow(row, viewerId) {
@@ -284,6 +298,14 @@ function serializeMessageRow(row, viewerId) {
 
   const deleted = !!row.deleted_at;
 
+  let forwardedFrom = null;
+  if (row.forwarded_from_message_id) {
+    const origin = conn
+      .prepare("SELECT sender_id, channel_id FROM messages WHERE id = ?")
+      .get(row.forwarded_from_message_id);
+    if (origin) forwardedFrom = { messageId: row.forwarded_from_message_id, senderId: origin.sender_id, channelId: origin.channel_id };
+  }
+
   return {
     id: row.id,
     channelId: row.channel_id,
@@ -303,6 +325,7 @@ function serializeMessageRow(row, viewerId) {
     editedAt: row.edited_at,
     deletedAt: row.deleted_at,
     pinnedAt: row.pinned_at,
+    forwardedFrom,
     replyCount,
     reactions: [...reactionMap.values()],
   };
@@ -359,7 +382,14 @@ function lastMessage(channelId) {
   };
 }
 
-function createMessage({ channelId, senderId, content, parentMessageId = null, attachment = null }) {
+function createMessage({
+  channelId,
+  senderId,
+  content,
+  parentMessageId = null,
+  attachment = null,
+  forwardedFromMessageId = null,
+}) {
   const message = {
     id: id(),
     channelId,
@@ -370,13 +400,14 @@ function createMessage({ channelId, senderId, content, parentMessageId = null, a
     attachmentName: attachment?.name || null,
     attachmentMime: attachment?.mime || null,
     attachmentSize: attachment?.size || null,
+    forwardedFromMessageId,
     createdAt: now(),
   };
   conn
     .prepare(
       `INSERT INTO messages
-        (id, channel_id, sender_id, parent_message_id, content, attachment_url, attachment_name, attachment_mime, attachment_size, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`
+        (id, channel_id, sender_id, parent_message_id, content, attachment_url, attachment_name, attachment_mime, attachment_size, forwarded_from_message_id, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       message.id,
@@ -388,6 +419,7 @@ function createMessage({ channelId, senderId, content, parentMessageId = null, a
       message.attachmentName,
       message.attachmentMime,
       message.attachmentSize,
+      message.forwardedFromMessageId,
       message.createdAt
     );
   return getMessageById(message.id, senderId);
@@ -541,6 +573,7 @@ module.exports = {
   removeMember,
   markRead,
   setMuted,
+  setFavorite,
   listMessages,
   listThreadReplies,
   getMessageById,
