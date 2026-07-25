@@ -23,6 +23,11 @@ import type {
   CrmLead,
   CrmLeadStage,
   DashboardWidget,
+  Mail,
+  MailBox,
+  PermissionModule,
+  Role,
+  RolePermission,
   FinanceInvoice,
   FinanceInvoiceItem,
   FinanceInvoiceStatus,
@@ -311,6 +316,27 @@ export const api = {
   deleteDashboardWidget: (widgetId: string) => request<void>(`/api/dashboard/widgets/${widgetId}`, { method: "DELETE" }),
   getWidgetData: (widgetId: string) =>
     request<MyTasksWidgetData & RecentWikiWidgetData & FinanceProgressWidgetData & NewLeadsWidgetData>(`/api/dashboard/widgets/${widgetId}/data`),
+
+  listAdminUsers: () => request<{ users: User[] }>("/api/admin/users"),
+  updateUserRole: (userId: string, role: Role) =>
+    request<{ user: User }>(`/api/admin/users/${userId}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
+  listRolePermissions: () =>
+    request<{ roles: Role[]; modules: PermissionModule[]; permissions: RolePermission[] }>("/api/admin/permissions"),
+  setRolePermission: (role: Role, module: PermissionModule, flags: Partial<Omit<RolePermission, "role" | "module">>) =>
+    request<{ permission: RolePermission }>(`/api/admin/permissions/${role}/${module}`, {
+      method: "PUT",
+      body: JSON.stringify(flags),
+    }),
+
+  listMail: (box: MailBox) => request<{ mails: Mail[]; unreadCount: number }>(`/api/mail?box=${box}`),
+  createMail: (data: { subject: string; body: string; toIds: string[]; ccIds?: string[]; draft?: boolean }) =>
+    request<{ mail: Mail }>("/api/mail", { method: "POST", body: JSON.stringify(data) }),
+  getMail: (mailId: string) => request<{ mail: Mail }>(`/api/mail/${mailId}`),
+  updateMailDraft: (mailId: string, data: Partial<{ subject: string; body: string; toIds: string[]; ccIds: string[] }>) =>
+    request<{ mail: Mail }>(`/api/mail/${mailId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  sendMailDraft: (mailId: string) => request<{ mail: Mail }>(`/api/mail/${mailId}/send`, { method: "POST" }),
+  starMail: (mailId: string) => request<{ mail: Mail }>(`/api/mail/${mailId}/star`, { method: "POST" }),
+  deleteMail: (mailId: string) => request<void>(`/api/mail/${mailId}`, { method: "DELETE" }),
 };
 
 export { ApiError, API_BASE };

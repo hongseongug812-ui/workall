@@ -319,6 +319,33 @@ conn.exec(`
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS mails (
+    id TEXT PRIMARY KEY,
+    from_user_id TEXT NOT NULL REFERENCES users(id),
+    subject TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    is_draft INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS mail_recipients (
+    mail_id TEXT NOT NULL REFERENCES mails(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    kind TEXT NOT NULL CHECK(kind IN ('to','cc')),
+    PRIMARY KEY (mail_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS mail_boxes (
+    id TEXT PRIMARY KEY,
+    mail_id TEXT NOT NULL REFERENCES mails(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    box TEXT NOT NULL CHECK(box IN ('inbox','sent','draft','trash')),
+    read_at TEXT,
+    starred INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS entity_links (
     id TEXT PRIMARY KEY,
     from_module TEXT NOT NULL,
@@ -365,6 +392,8 @@ conn.exec(`
   CREATE INDEX IF NOT EXISTS idx_finance_subs_space ON finance_subscriptions(space_id);
   CREATE INDEX IF NOT EXISTS idx_finance_invoices_space ON finance_invoices(space_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_user ON dashboard_widgets(user_id, position);
+  CREATE INDEX IF NOT EXISTS idx_mail_boxes_user ON mail_boxes(user_id, box, created_at);
+  CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail ON mail_recipients(mail_id);
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -386,13 +415,13 @@ ensureColumn("users", "avatar_url", "TEXT");
 // 롤은 4단계 고정: 최고 관리자 > 부서 관리자 > 일반 사용자 > 게스트(외부인).
 // 모듈은 향후 추가되는 각 기능 영역에 대응한다.
 const ROLES = ["super_admin", "dept_admin", "member", "guest"];
-const MODULES = ["messenger", "project", "wiki", "crm", "finance", "dashboard", "admin"];
+const MODULES = ["messenger", "project", "wiki", "crm", "finance", "dashboard", "mail", "calendar", "drive", "approval", "admin"];
 
 const DEFAULT_PERMISSIONS = {
-  super_admin: { messenger: "crud", project: "crud", wiki: "crud", crm: "crud", finance: "crud", dashboard: "crud", admin: "crud" },
-  dept_admin: { messenger: "crud", project: "crud", wiki: "crud", crm: "crud", finance: "cru", dashboard: "cru", admin: "r" },
-  member: { messenger: "cru", project: "cru", wiki: "cru", crm: "r", finance: "r", dashboard: "cru", admin: "" },
-  guest: { messenger: "r", project: "r", wiki: "r", crm: "", finance: "", dashboard: "r", admin: "" },
+  super_admin: { messenger: "crud", project: "crud", wiki: "crud", crm: "crud", finance: "crud", dashboard: "crud", mail: "crud", calendar: "crud", drive: "crud", approval: "crud", admin: "crud" },
+  dept_admin: { messenger: "crud", project: "crud", wiki: "crud", crm: "crud", finance: "cru", dashboard: "cru", mail: "cru", calendar: "cru", drive: "cru", approval: "cru", admin: "r" },
+  member: { messenger: "cru", project: "cru", wiki: "cru", crm: "r", finance: "r", dashboard: "cru", mail: "cru", calendar: "cru", drive: "cru", approval: "cru", admin: "" },
+  guest: { messenger: "r", project: "r", wiki: "r", crm: "", finance: "", dashboard: "r", mail: "r", calendar: "r", drive: "r", approval: "", admin: "" },
 };
 
 function permFlags(spec) {
@@ -2360,6 +2389,152 @@ function countNewLeadsThisWeek(spaceId) {
   return row.n;
 }
 
+// ---- 사내 메일 ----
+
+function serializeMailRow(row, box) {
+  const recipients = conn
+    .prepare("SELECT user_id, kind FROM mail_recipients WHERE mail_id = ?")
+    .all(row.id)
+    .map((r) => ({ userId: r.user_id, kind: r.kind }));
+  return {
+    id: row.id,
+    fromUserId: row.from_user_id,
+    subject: row.subject,
+    body: row.body,
+    isDraft: !!row.is_draft,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    recipients,
+    box: box?.box,
+    readAt: box?.read_at ?? null,
+    starred: !!box?.starred,
+  };
+}
+
+function createMail({ fromUserId, subject, body, toIds = [], ccIds = [], draft }) {
+  const mail = {
+    id: id(),
+    fromUserId,
+    subject: subject || "",
+    body: body || "",
+    isDraft: draft ? 1 : 0,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  conn
+    .prepare(
+      "INSERT INTO mails (id, from_user_id, subject, body, is_draft, created_at, updated_at) VALUES (?,?,?,?,?,?,?)"
+    )
+    .run(mail.id, mail.fromUserId, mail.subject, mail.body, mail.isDraft, mail.createdAt, mail.updatedAt);
+
+  const insertRecipient = conn.prepare("INSERT INTO mail_recipients (mail_id, user_id, kind) VALUES (?,?,?)");
+  for (const uid of toIds) insertRecipient.run(mail.id, uid, "to");
+  for (const uid of ccIds) insertRecipient.run(mail.id, uid, "cc");
+
+  const insertBox = conn.prepare(
+    "INSERT INTO mail_boxes (id, mail_id, user_id, box, created_at) VALUES (?,?,?,?,?)"
+  );
+  if (draft) {
+    insertBox.run(id(), mail.id, fromUserId, "draft", now());
+  } else {
+    insertBox.run(id(), mail.id, fromUserId, "sent", now());
+    for (const uid of [...new Set([...toIds, ...ccIds])]) {
+      insertBox.run(id(), mail.id, uid, "inbox", now());
+    }
+  }
+  return findMailById(mail.id, fromUserId);
+}
+
+function findMailById(mailId, viewerId) {
+  const row = conn.prepare("SELECT * FROM mails WHERE id = ?").get(mailId);
+  if (!row) return null;
+  const box = viewerId
+    ? conn.prepare("SELECT * FROM mail_boxes WHERE mail_id = ? AND user_id = ?").get(mailId, viewerId)
+    : null;
+  return serializeMailRow(row, box);
+}
+
+function listMailbox(userId, box) {
+  const rows = conn
+    .prepare(
+      `SELECT m.*, mb.box AS mb_box, mb.read_at AS mb_read_at, mb.starred AS mb_starred, mb.created_at AS mb_created_at
+       FROM mail_boxes mb JOIN mails m ON m.id = mb.mail_id
+       WHERE mb.user_id = ? AND mb.box = ?
+       ORDER BY mb.created_at DESC`
+    )
+    .all(userId, box);
+  return rows.map((row) =>
+    serializeMailRow(row, { box: row.mb_box, read_at: row.mb_read_at, starred: row.mb_starred })
+  );
+}
+
+function updateDraft(mailId, userId, { subject, body, toIds, ccIds }) {
+  const mail = conn.prepare("SELECT * FROM mails WHERE id = ?").get(mailId);
+  if (!mail || !mail.is_draft || mail.from_user_id !== userId) return { error: "not_found" };
+  conn
+    .prepare("UPDATE mails SET subject = ?, body = ?, updated_at = ? WHERE id = ?")
+    .run(subject ?? mail.subject, body ?? mail.body, now(), mailId);
+  if (toIds || ccIds) {
+    conn.prepare("DELETE FROM mail_recipients WHERE mail_id = ?").run(mailId);
+    const insertRecipient = conn.prepare("INSERT INTO mail_recipients (mail_id, user_id, kind) VALUES (?,?,?)");
+    for (const uid of toIds || []) insertRecipient.run(mailId, uid, "to");
+    for (const uid of ccIds || []) insertRecipient.run(mailId, uid, "cc");
+  }
+  return { mail: findMailById(mailId, userId) };
+}
+
+function sendDraft(mailId, userId) {
+  const mail = conn.prepare("SELECT * FROM mails WHERE id = ?").get(mailId);
+  if (!mail || !mail.is_draft || mail.from_user_id !== userId) return { error: "not_found" };
+  const recipients = conn.prepare("SELECT user_id FROM mail_recipients WHERE mail_id = ?").all(mailId);
+  if (recipients.length === 0) return { error: "no_recipients" };
+  conn.prepare("UPDATE mails SET is_draft = 0, updated_at = ? WHERE id = ?").run(now(), mailId);
+  conn.prepare("UPDATE mail_boxes SET box = 'sent' WHERE mail_id = ? AND user_id = ?").run(mailId, userId);
+  const insertBox = conn.prepare(
+    "INSERT INTO mail_boxes (id, mail_id, user_id, box, created_at) VALUES (?,?,?,?,?)"
+  );
+  for (const r of recipients) insertBox.run(id(), mailId, r.user_id, "inbox", now());
+  return { mail: findMailById(mailId, userId) };
+}
+
+function markMailRead(mailId, userId) {
+  conn
+    .prepare("UPDATE mail_boxes SET read_at = ? WHERE mail_id = ? AND user_id = ? AND read_at IS NULL")
+    .run(now(), mailId, userId);
+}
+
+function toggleMailStar(mailId, userId) {
+  const box = conn.prepare("SELECT * FROM mail_boxes WHERE mail_id = ? AND user_id = ?").get(mailId, userId);
+  if (!box) return null;
+  conn
+    .prepare("UPDATE mail_boxes SET starred = ? WHERE mail_id = ? AND user_id = ?")
+    .run(box.starred ? 0 : 1, mailId, userId);
+  return findMailById(mailId, userId);
+}
+
+// 받은편지함 항목은 휴지통으로, 이미 휴지통이면 완전 삭제한다.
+function deleteMail(mailId, userId) {
+  const box = conn.prepare("SELECT * FROM mail_boxes WHERE mail_id = ? AND user_id = ?").get(mailId, userId);
+  if (!box) return { error: "not_found" };
+  if (box.box === "trash") {
+    conn.prepare("DELETE FROM mail_boxes WHERE mail_id = ? AND user_id = ?").run(mailId, userId);
+    const remaining = conn.prepare("SELECT COUNT(*) AS n FROM mail_boxes WHERE mail_id = ?").get(mailId).n;
+    if (remaining === 0) {
+      conn.prepare("DELETE FROM mail_recipients WHERE mail_id = ?").run(mailId);
+      conn.prepare("DELETE FROM mails WHERE id = ?").run(mailId);
+    }
+    return { ok: true };
+  }
+  conn.prepare("UPDATE mail_boxes SET box = 'trash' WHERE mail_id = ? AND user_id = ?").run(mailId, userId);
+  return { ok: true };
+}
+
+function unreadMailCount(userId) {
+  return conn
+    .prepare("SELECT COUNT(*) AS n FROM mail_boxes WHERE user_id = ? AND box = 'inbox' AND read_at IS NULL")
+    .get(userId).n;
+}
+
 module.exports = {
   ROLES,
   MODULES,
@@ -2467,6 +2642,15 @@ module.exports = {
   listMyDueTasks,
   listRecentWikiPages,
   countNewLeadsThisWeek,
+  createMail,
+  findMailById,
+  listMailbox,
+  updateDraft,
+  sendDraft,
+  markMailRead,
+  toggleMailStar,
+  deleteMail,
+  unreadMailCount,
   listChannelsForUser,
   findChannelById,
   findDmChannel,

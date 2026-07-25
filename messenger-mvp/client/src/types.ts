@@ -10,6 +10,17 @@ export interface User {
   createdAt: string;
 }
 
+export type PermissionModule = "messenger" | "project" | "wiki" | "crm" | "finance" | "dashboard" | "admin";
+
+export interface RolePermission {
+  role: Role;
+  module: PermissionModule;
+  canRead: boolean;
+  canWrite: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+}
+
 export interface AppNotification {
   id: string;
   userId: string;
@@ -340,6 +351,27 @@ export interface FinanceSummary {
   cashflow: CashflowMonth[];
   categoryBreakdown: CategoryBreakdownEntry[];
   currentMonth: string;
+}
+
+export type MailBox = "inbox" | "sent" | "draft" | "trash";
+
+export interface MailRecipient {
+  userId: string;
+  kind: "to" | "cc";
+}
+
+export interface Mail {
+  id: string;
+  fromUserId: string;
+  subject: string;
+  body: string;
+  isDraft: boolean;
+  createdAt: string;
+  updatedAt: string;
+  recipients: MailRecipient[];
+  box?: MailBox;
+  readAt: string | null;
+  starred: boolean;
 }
 
 export type WidgetType = "my_tasks" | "recent_wiki" | "finance_progress" | "new_leads";

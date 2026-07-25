@@ -43,7 +43,8 @@ router.post("/widgets/reorder", requireAuth, requirePermission("dashboard", "upd
   res.json({ widgets: db.reorderDashboardWidgets(req.userId, orderedIds) });
 });
 
-router.delete("/widgets/:id", requireAuth, requirePermission("dashboard", "delete"), (req, res) => {
+// 내 홈 화면 위젯을 빼는 것은 다른 사람에게 영향 없는 개인 설정이므로 write 권한만 요구한다.
+router.delete("/widgets/:id", requireAuth, requirePermission("dashboard", "write"), (req, res) => {
   const ok = db.deleteDashboardWidget(req.params.id, req.userId);
   if (!ok) return res.status(404).json({ error: "위젯을 찾을 수 없습니다." });
   res.status(204).end();

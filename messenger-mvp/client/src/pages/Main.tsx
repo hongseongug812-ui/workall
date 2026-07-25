@@ -17,6 +17,8 @@ import WikiView from "../components/WikiView";
 import CrmView from "../components/CrmView";
 import FinanceView from "../components/FinanceView";
 import HomeDashboard from "../components/HomeDashboard";
+import AdminView from "../components/AdminView";
+import MailView from "../components/MailView";
 
 const MESSAGE_PAGE_SIZE = 50;
 const DEFAULT_STATUS: UserStatus = { status: "online", statusMessage: null };
@@ -46,7 +48,12 @@ export default function Main() {
   const [checklistByChannel, setChecklistByChannel] = useState<Record<string, ChecklistItem[]>>({});
   const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
-  const [activeView, setActiveView] = useState<"home" | "messenger" | "projects" | "wiki" | "crm" | "finance">("home");
+  const [activeView, setActiveView] = useState<"home" | "messenger" | "mail" | "calendar" | "projects" | "wiki" | "crm" | "finance" | "drive" | "approval" | "admin">("home");
+  const [unreadMailCount, setUnreadMailCount] = useState(0);
+
+  useEffect(() => {
+    api.listMail("inbox").then(({ unreadCount }) => setUnreadMailCount(unreadCount));
+  }, [activeView]);
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
   const channelsRef = useRef<Channel[]>([]);
@@ -487,6 +494,7 @@ export default function Main() {
         onLogout={logout}
         activeView={activeView}
         onSelectView={setActiveView}
+        unreadMailCount={unreadMailCount}
       />
       {activeView === "home" ? (
         <HomeDashboard
@@ -548,8 +556,12 @@ export default function Main() {
         <WikiView currentUser={user} users={users} />
       ) : activeView === "crm" ? (
         <CrmView currentUser={user} users={users} />
-      ) : (
+      ) : activeView === "finance" ? (
         <FinanceView currentUser={user} users={users} />
+      ) : activeView === "mail" ? (
+        <MailView currentUser={user} users={users} />
+      ) : (
+        <AdminView currentUser={user} />
       )}
       {showNewGroup && (
         <NewGroupModal users={users} onCancel={() => setShowNewGroup(false)} onCreate={handleCreateGroup} />

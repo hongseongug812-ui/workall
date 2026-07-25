@@ -4786,3 +4786,185 @@ textarea:focus-visible {
   background: rgba(0, 184, 148, 0.15);
   color: #00b894;
 }
+
+/* ---- 관리자(RBAC) 화면 ---- */
+
+.admin-view-page {
+  grid-column: 2 / -1;
+  overflow-y: auto;
+}
+
+.admin-section {
+  margin-bottom: 32px;
+}
+
+.admin-section h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.admin-readonly-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin-bottom: 20px;
+}
+
+.admin-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.admin-matrix-wrap {
+  overflow-x: auto;
+}
+
+.admin-matrix-table th,
+.admin-matrix-table td {
+  white-space: nowrap;
+}
+
+.admin-matrix-module {
+  font-weight: 700;
+}
+
+.admin-flag-group {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-flag-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-flag-toggle:disabled {
+  cursor: default;
+}
+
+.admin-flag-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* ---- 메일 모듈 ---- */
+
+.mail-unread-badge {
+  margin-left: auto;
+}
+
+.mail-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mail-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 10px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.mail-list-item:hover {
+  background: var(--hover);
+}
+
+.mail-list-item.unread {
+  font-weight: 700;
+  background: var(--accent-soft);
+}
+
+.mail-star {
+  color: var(--border-strong, var(--border));
+  flex-shrink: 0;
+}
+
+.mail-star.on {
+  color: #f9a826;
+}
+
+.mail-list-person {
+  width: 100px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-list-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.mail-list-preview {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.mail-draft-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mail-list-date {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mail-detail-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mail-detail-subject {
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.mail-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mail-detail-date {
+  margin-left: auto;
+}
+
+.mail-detail-body {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 14px;
+}

@@ -4,7 +4,7 @@ export type IconName =
   | "attach" | "close" | "edit" | "file" | "message" | "moon" | "plus"
   | "search" | "send" | "smile" | "sparkles" | "sun" | "trash" | "users" | "bell" | "clock"
   | "pin" | "bellOff" | "lock" | "user" | "star" | "forward" | "check" | "checkDouble" | "image"
-  | "home" | "logout" | "info" | "board" | "list" | "calendar" | "chevronDown" | "book" | "wallet";
+  | "home" | "logout" | "info" | "board" | "list" | "calendar" | "chevronDown" | "book" | "wallet" | "mail" | "folder" | "video" | "stamp";
 
 interface Props extends Omit<SVGProps<SVGSVGElement>, "name"> {
   name: IconName;
@@ -47,6 +47,10 @@ export default function Icon({ name, size = 18, className = "", ...props }: Prop
     chevronDown: <path d="m6 9 6 6 6-6" />,
     book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></>,
     wallet: <><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h3v-4Z" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+    folder: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />,
+    video: <><rect x="2" y="6" width="14" height="12" rx="2" /><path d="m16 10 6-3v10l-6-3Z" /></>,
+    stamp: <><path d="M12 3a3 3 0 0 1 3 3c0 1.3-.7 2-1.5 2.7S12 10.3 12 11" /><path d="M12 11v3" /><rect x="4" y="17" width="16" height="4" rx="1" /><path d="M7 17v-3a5 5 0 0 1 10 0v3" /></>,
   };
 
   return (

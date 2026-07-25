@@ -7,8 +7,9 @@ interface Props {
   myStatus: PresenceStatus;
   darkMode: boolean;
   unreadNotificationCount: number;
-  activeView: "home" | "messenger" | "projects" | "wiki" | "crm" | "finance";
-  onSelectView: (view: "home" | "messenger" | "projects" | "wiki" | "crm" | "finance") => void;
+  activeView: "home" | "messenger" | "mail" | "calendar" | "projects" | "wiki" | "crm" | "finance" | "drive" | "approval" | "admin";
+  onSelectView: (view: "home" | "messenger" | "mail" | "calendar" | "projects" | "wiki" | "crm" | "finance" | "drive" | "approval" | "admin") => void;
+  unreadMailCount: number;
   onToggleDarkMode: () => void;
   onOpenSearch: () => void;
   onOpenAttendance: () => void;
@@ -24,6 +25,7 @@ export default function IconRail({
   unreadNotificationCount,
   activeView,
   onSelectView,
+  unreadMailCount,
   onToggleDarkMode,
   onOpenSearch,
   onOpenAttendance,
@@ -80,6 +82,16 @@ export default function IconRail({
         >
           <Icon name="wallet" size={20} />
         </button>
+        <button
+          className={`icon-rail-button ${activeView === "mail" ? "active" : ""}`}
+          title="메일"
+          onClick={() => onSelectView("mail")}
+        >
+          <Icon name="mail" size={20} />
+          {unreadMailCount > 0 && (
+            <span className="icon-rail-badge">{unreadMailCount > 9 ? "9+" : unreadMailCount}</span>
+          )}
+        </button>
         <button className="icon-rail-button" title="메시지 검색" onClick={onOpenSearch}>
           <Icon name="search" size={20} />
         </button>
@@ -97,6 +109,15 @@ export default function IconRail({
       <div className="icon-rail-spacer" />
 
       <div className="icon-rail-group">
+        {(currentUser.role === "super_admin" || currentUser.role === "dept_admin") && (
+          <button
+            className={`icon-rail-button ${activeView === "admin" ? "active" : ""}`}
+            title="관리자"
+            onClick={() => onSelectView("admin")}
+          >
+            <Icon name="lock" size={19} />
+          </button>
+        )}
         <button
           className="icon-rail-button"
           title={darkMode ? "라이트 모드" : "다크 모드"}
