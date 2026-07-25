@@ -366,6 +366,27 @@ conn.exec(`
     PRIMARY KEY (event_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS drive_folders (
+    id TEXT PRIMARY KEY,
+    space_id TEXT NOT NULL REFERENCES spaces(id),
+    parent_id TEXT REFERENCES drive_folders(id),
+    name TEXT NOT NULL,
+    created_by TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS drive_files (
+    id TEXT PRIMARY KEY,
+    space_id TEXT NOT NULL REFERENCES spaces(id),
+    folder_id TEXT REFERENCES drive_folders(id),
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    mime TEXT,
+    size INTEGER,
+    uploaded_by TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS entity_links (
     id TEXT PRIMARY KEY,
     from_module TEXT NOT NULL,
@@ -415,6 +436,8 @@ conn.exec(`
   CREATE INDEX IF NOT EXISTS idx_mail_boxes_user ON mail_boxes(user_id, box, created_at);
   CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail ON mail_recipients(mail_id);
   CREATE INDEX IF NOT EXISTS idx_calendar_events_space ON calendar_events(space_id, start_at);
+  CREATE INDEX IF NOT EXISTS idx_drive_folders_space ON drive_folders(space_id, parent_id);
+  CREATE INDEX IF NOT EXISTS idx_drive_files_space ON drive_files(space_id, folder_id);
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -2658,6 +2681,79 @@ function deleteCalendarEvent(eventId) {
   return result.changes > 0;
 }
 
+// ---- 드라이브 ----
+
+function serializeFolderRow(row) {
+  return { id: row.id, spaceId: row.space_id, parentId: row.parent_id, name: row.name, createdBy: row.created_by, createdAt: row.created_at };
+}
+
+function serializeFileRow(row) {
+  return {
+    id: row.id,
+    spaceId: row.space_id,
+    folderId: row.folder_id,
+    name: row.name,
+    url: row.url,
+    mime: row.mime,
+    size: row.size,
+    uploadedBy: row.uploaded_by,
+    createdAt: row.created_at,
+  };
+}
+
+function listDriveFolders(spaceId) {
+  return conn.prepare("SELECT * FROM drive_folders WHERE space_id = ? ORDER BY name").all(spaceId).map(serializeFolderRow);
+}
+
+function createDriveFolder({ spaceId, parentId, name, createdBy }) {
+  const folder = { id: id(), spaceId, parentId: parentId || null, name, createdBy, createdAt: now() };
+  conn
+    .prepare("INSERT INTO drive_folders (id, space_id, parent_id, name, created_by, created_at) VALUES (?,?,?,?,?,?)")
+    .run(folder.id, folder.spaceId, folder.parentId, folder.name, folder.createdBy, folder.createdAt);
+  return folder;
+}
+
+function findDriveFolderById(folderId) {
+  const row = conn.prepare("SELECT * FROM drive_folders WHERE id = ?").get(folderId);
+  return row ? serializeFolderRow(row) : null;
+}
+
+function deleteDriveFolder(folderId) {
+  const childFolders = conn.prepare("SELECT COUNT(*) AS n FROM drive_folders WHERE parent_id = ?").get(folderId).n;
+  const childFiles = conn.prepare("SELECT COUNT(*) AS n FROM drive_files WHERE folder_id = ?").get(folderId).n;
+  if (childFolders > 0 || childFiles > 0) return { error: "not_empty" };
+  conn.prepare("DELETE FROM drive_folders WHERE id = ?").run(folderId);
+  return { ok: true };
+}
+
+function listDriveFiles(spaceId, folderId) {
+  const sql = folderId
+    ? "SELECT * FROM drive_files WHERE space_id = ? AND folder_id = ? ORDER BY created_at DESC"
+    : "SELECT * FROM drive_files WHERE space_id = ? AND folder_id IS NULL ORDER BY created_at DESC";
+  const params = folderId ? [spaceId, folderId] : [spaceId];
+  return conn.prepare(sql).all(...params).map(serializeFileRow);
+}
+
+function createDriveFile({ spaceId, folderId, name, url, mime, size, uploadedBy }) {
+  const file = { id: id(), spaceId, folderId: folderId || null, name, url, mime, size, uploadedBy, createdAt: now() };
+  conn
+    .prepare(
+      "INSERT INTO drive_files (id, space_id, folder_id, name, url, mime, size, uploaded_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+    )
+    .run(file.id, file.spaceId, file.folderId, file.name, file.url, file.mime, file.size, file.uploadedBy, file.createdAt);
+  return file;
+}
+
+function findDriveFileById(fileId) {
+  const row = conn.prepare("SELECT * FROM drive_files WHERE id = ?").get(fileId);
+  return row ? serializeFileRow(row) : null;
+}
+
+function deleteDriveFile(fileId) {
+  const result = conn.prepare("DELETE FROM drive_files WHERE id = ?").run(fileId);
+  return result.changes > 0;
+}
+
 module.exports = {
   ROLES,
   MODULES,
@@ -2779,6 +2875,14 @@ module.exports = {
   listCalendarEvents,
   updateCalendarEvent,
   deleteCalendarEvent,
+  listDriveFolders,
+  createDriveFolder,
+  findDriveFolderById,
+  deleteDriveFolder,
+  listDriveFiles,
+  createDriveFile,
+  findDriveFileById,
+  deleteDriveFile,
   listChannelsForUser,
   findChannelById,
   findDmChannel,

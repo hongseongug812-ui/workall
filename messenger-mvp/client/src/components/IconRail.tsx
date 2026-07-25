@@ -99,6 +99,13 @@ export default function IconRail({
         >
           <Icon name="calendar" size={20} />
         </button>
+        <button
+          className={`icon-rail-button ${activeView === "drive" ? "active" : ""}`}
+          title="드라이브"
+          onClick={() => onSelectView("drive")}
+        >
+          <Icon name="folder" size={20} />
+        </button>
         <button className="icon-rail-button" title="메시지 검색" onClick={onOpenSearch}>
           <Icon name="search" size={20} />
         </button>

@@ -20,6 +20,7 @@ import HomeDashboard from "../components/HomeDashboard";
 import AdminView from "../components/AdminView";
 import MailView from "../components/MailView";
 import CalendarView from "../components/CalendarView";
+import DriveView from "../components/DriveView";
 
 const MESSAGE_PAGE_SIZE = 50;
 const DEFAULT_STATUS: UserStatus = { status: "online", statusMessage: null };
@@ -563,6 +564,8 @@ export default function Main() {
         <MailView currentUser={user} users={users} />
       ) : activeView === "calendar" ? (
         <CalendarView currentUser={user} users={users} />
+      ) : activeView === "drive" ? (
+        <DriveView currentUser={user} users={users} />
       ) : (
         <AdminView currentUser={user} />
       )}

@@ -24,6 +24,8 @@ import type {
   CrmLeadStage,
   CalendarEvent,
   DashboardWidget,
+  DriveFile,
+  DriveFolder,
   Mail,
   MailBox,
   PermissionModule,
@@ -350,6 +352,16 @@ export const api = {
     title: string; description: string; startAt: string; endAt: string; allDay: boolean; location: string; attendeeIds: string[];
   }>) => request<{ event: CalendarEvent }>(`/api/calendar/events/${eventId}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteCalendarEvent: (eventId: string) => request<void>(`/api/calendar/events/${eventId}`, { method: "DELETE" }),
+
+  listDriveFolders: (spaceId: string) => request<{ folders: DriveFolder[] }>(`/api/drive/folders?spaceId=${spaceId}`),
+  createDriveFolder: (data: { spaceId: string; parentId?: string | null; name: string }) =>
+    request<{ folder: DriveFolder }>("/api/drive/folders", { method: "POST", body: JSON.stringify(data) }),
+  deleteDriveFolder: (folderId: string) => request<void>(`/api/drive/folders/${folderId}`, { method: "DELETE" }),
+  listDriveFiles: (spaceId: string, folderId?: string | null) =>
+    request<{ files: DriveFile[] }>(`/api/drive/files?${new URLSearchParams({ spaceId, ...(folderId ? { folderId } : {}) })}`),
+  createDriveFile: (data: { spaceId: string; folderId?: string | null; name: string; url: string; mime?: string; size?: number }) =>
+    request<{ file: DriveFile }>("/api/drive/files", { method: "POST", body: JSON.stringify(data) }),
+  deleteDriveFile: (fileId: string) => request<void>(`/api/drive/files/${fileId}`, { method: "DELETE" }),
 };
 
 export { ApiError, API_BASE };

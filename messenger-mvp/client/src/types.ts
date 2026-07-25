@@ -368,6 +368,27 @@ export interface CalendarEvent {
   attendeeIds: string[];
 }
 
+export interface DriveFolder {
+  id: string;
+  spaceId: string;
+  parentId: string | null;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface DriveFile {
+  id: string;
+  spaceId: string;
+  folderId: string | null;
+  name: string;
+  url: string;
+  mime: string | null;
+  size: number | null;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export type MailBox = "inbox" | "sent" | "draft" | "trash";
 
 export interface MailRecipient {
