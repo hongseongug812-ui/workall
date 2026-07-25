@@ -3271,7 +3271,8 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   padding: 20px 24px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .projects-empty-state {
