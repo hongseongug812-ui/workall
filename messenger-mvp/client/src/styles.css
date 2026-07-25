@@ -940,8 +940,11 @@ body,
 }
 
 body {
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  overflow: hidden;
 }
 
 button,
