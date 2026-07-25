@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
 import type { User } from "../types";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 
 interface Props {
@@ -13,9 +14,41 @@ interface Props {
 export default function ProfileModal({ currentUser, onClose, onUpdated }: Props) {
   const [name, setName] = useState(currentUser.name);
   const [department, setDepartment] = useState(currentUser.department);
+  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatarUrl);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleAvatarSelect(file: File) {
+    setUploadingAvatar(true);
+    setProfileError(null);
+    try {
+      const uploaded = await api.uploadFile(file);
+      const { user } = await api.updateProfile({ avatarUrl: uploaded.url });
+      setAvatarUrl(user.avatarUrl);
+      onUpdated(user);
+    } catch (err) {
+      setProfileError(err instanceof ApiError ? err.message : "프로필 사진 업로드에 실패했습니다.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function handleAvatarRemove() {
+    setUploadingAvatar(true);
+    setProfileError(null);
+    try {
+      const { user } = await api.updateProfile({ avatarUrl: null });
+      setAvatarUrl(null);
+      onUpdated(user);
+    } catch (err) {
+      setProfileError(err instanceof ApiError ? err.message : "프로필 사진 삭제에 실패했습니다.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -72,6 +105,27 @@ export default function ProfileModal({ currentUser, onClose, onUpdated }: Props)
           <button className="link-button" onClick={onClose}>
             <Icon name="close" size={14} /> 닫기
           </button>
+        </div>
+
+        <div className="profile-avatar-row">
+          <Avatar name={currentUser.name} avatarUrl={avatarUrl} size={64} />
+          <div className="profile-avatar-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => e.target.files?.[0] && handleAvatarSelect(e.target.files[0])}
+            />
+            <button type="button" className="link-button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+              {uploadingAvatar ? "업로드 중..." : "사진 변경"}
+            </button>
+            {avatarUrl && (
+              <button type="button" className="link-button" onClick={handleAvatarRemove} disabled={uploadingAvatar}>
+                제거
+              </button>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleProfileSubmit} className="profile-section">

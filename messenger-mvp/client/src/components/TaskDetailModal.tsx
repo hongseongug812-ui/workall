@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
 import type { Project, Subtask, Task, TaskComment, TaskPriority, TaskStatus, User } from "../types";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 
 interface Props {
@@ -254,10 +255,11 @@ export default function TaskDetailModal({ taskId, project, statuses, users, curr
               </div>
               <ul className="task-comment-list">
                 {comments.map((c) => {
-                  const authorName = c.userId === currentUser.id ? "나" : users.find((u) => u.id === c.userId)?.name || "알 수 없음";
+                  const author = c.userId === currentUser.id ? currentUser : users.find((u) => u.id === c.userId);
+                  const authorName = c.userId === currentUser.id ? "나" : author?.name || "알 수 없음";
                   return (
                   <li key={c.id} className="task-comment-row">
-                    <span className="avatar avatar-tiny">{authorName.slice(0, 1)}</span>
+                    <Avatar name={authorName} avatarUrl={author?.avatarUrl} size={20} className="avatar-tiny" />
                     <div>
                       <div className="task-comment-meta">
                         <strong>{authorName}</strong>

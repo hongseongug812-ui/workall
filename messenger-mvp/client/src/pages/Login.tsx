@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import Icon from "../components/Icon";
 
 interface Props {
@@ -18,6 +19,7 @@ export default function Login({ initialMode = "login", onBack }: Props) {
   const [department, setDepartment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -87,6 +89,12 @@ export default function Login({ initialMode = "login", onBack }: Props) {
           />
         </label>
 
+        {mode === "login" && (
+          <button type="button" className="auth-forgot-link" onClick={() => setShowForgotPassword(true)}>
+            비밀번호를 잊으셨나요?
+          </button>
+        )}
+
         {error && <p className="auth-error">{error}</p>}
 
         <button type="submit" disabled={submitting}>
@@ -110,6 +118,8 @@ export default function Login({ initialMode = "login", onBack }: Props) {
           </p>
         )}
       </form>
+
+      {showForgotPassword && <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />}
     </div>
   );
 }

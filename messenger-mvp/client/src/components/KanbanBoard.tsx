@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { Task, TaskStatus, User } from "../types";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 
 interface Props {
@@ -17,6 +18,10 @@ const PRIORITY_LABEL: Record<string, string> = { low: "낮음", medium: "보통"
 
 function userName(users: User[], id: string) {
   return users.find((u) => u.id === id)?.name || "?";
+}
+
+function userAvatar(users: User[], id: string) {
+  return users.find((u) => u.id === id)?.avatarUrl || null;
 }
 
 function QuickAddTask({ statusId, onCreateTask }: { statusId: string; onCreateTask: Props["onCreateTask"] }) {
@@ -121,8 +126,8 @@ export default function KanbanBoard({ statuses, tasks, users, onOpenTask, onMove
                   {task.assigneeIds.length > 0 && (
                     <div className="kanban-card-assignees">
                       {task.assigneeIds.slice(0, 3).map((id) => (
-                        <span key={id} className="avatar avatar-tiny" title={userName(users, id)}>
-                          {userName(users, id).slice(0, 1)}
+                        <span key={id} title={userName(users, id)}>
+                          <Avatar name={userName(users, id)} avatarUrl={userAvatar(users, id)} size={20} className="avatar-tiny" />
                         </span>
                       ))}
                     </div>

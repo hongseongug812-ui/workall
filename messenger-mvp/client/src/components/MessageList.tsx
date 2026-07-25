@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import type { Channel, Message } from "../types";
 import { API_BASE } from "../api";
 import { MessageContent } from "../linkify";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -77,6 +78,7 @@ export default function MessageList({
   }, [messages]);
 
   const memberName = (id: string) => channel.members.find((m) => m.id === id)?.name || "알 수 없음";
+  const memberAvatar = (id: string) => channel.members.find((m) => m.id === id)?.avatarUrl || null;
   const memberNames = channel.members.map((m) => m.name);
   const currentUserName = memberName(currentUserId);
 
@@ -130,7 +132,7 @@ export default function MessageList({
           <div key={m.id}>
             {showDateDivider && <div className="date-divider">{date}</div>}
             <div className={`message-row ${mine ? "mine" : ""}`}>
-              {!mine && <div className="avatar small">{memberName(m.senderId).slice(0, 1)}</div>}
+              {!mine && <Avatar name={memberName(m.senderId)} avatarUrl={memberAvatar(m.senderId)} size={26} className="small" />}
               <div className="message-bubble-wrap">
                 {!mine && <div className="message-sender">{memberName(m.senderId)}</div>}
                 {m.pinnedAt && (

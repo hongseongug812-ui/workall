@@ -1,4 +1,5 @@
 import type { PresenceStatus, User } from "../types";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 
 interface Props {
@@ -14,10 +15,6 @@ interface Props {
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onLogout: () => void;
-}
-
-function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase();
 }
 
 export default function IconRail({
@@ -108,7 +105,7 @@ export default function IconRail({
           <Icon name={darkMode ? "sun" : "moon"} size={19} />
         </button>
         <button className="icon-rail-button icon-rail-avatar" title={currentUser.name} onClick={onOpenProfile}>
-          <span className="avatar rail-avatar">{initials(currentUser.name)}</span>
+          <Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size={30} className="rail-avatar" />
           <span className={`rail-presence-dot ${myStatus}`} />
         </button>
         <button className="icon-rail-button" title="로그아웃" onClick={onLogout}>

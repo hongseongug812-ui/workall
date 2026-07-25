@@ -1,4 +1,5 @@
 import type { Channel, PresenceStatus, User, UserStatus } from "../types";
+import Avatar from "./Avatar";
 import Icon from "./Icon";
 import StatusPicker from "./StatusPicker";
 
@@ -14,10 +15,6 @@ interface Props {
   myStatus: UserStatus;
   onChangeStatus: (status: PresenceStatus, statusMessage: string | null) => void;
   onToggleFavorite: (channelId: string, favorite: boolean) => void;
-}
-
-function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase();
 }
 
 export default function Sidebar({
@@ -80,7 +77,7 @@ export default function Sidebar({
         <span className="sidebar-brand-name">Messenger</span>
       </div>
       <div className="sidebar-me">
-        <span className="avatar">{initials(currentUser.name)}</span>
+        <Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} />
         <div className="sidebar-me-info">
           <strong>{currentUser.name}</strong>
           <StatusPicker status={myStatus} onChange={onChangeStatus} />

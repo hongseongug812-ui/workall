@@ -85,10 +85,14 @@ export const api = {
       body: JSON.stringify(data),
     }),
   me: () => request<{ user: User }>("/api/auth/me"),
-  updateProfile: (data: { name?: string; department?: string }) =>
+  updateProfile: (data: { name?: string; department?: string; avatarUrl?: string | null }) =>
     request<{ user: User }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     request<{ ok: boolean }>("/api/auth/change-password", { method: "POST", body: JSON.stringify(data) }),
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ ok: boolean }>("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword }) }),
   listUsers: () => request<{ users: User[] }>("/api/users"),
   listChannels: () => request<{ channels: Channel[] }>("/api/channels"),
   openDm: (otherUserId: string) =>

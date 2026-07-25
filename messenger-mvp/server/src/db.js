@@ -25,6 +25,15 @@ conn.exec(`
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS channels (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL CHECK(type IN ('dm','group')),
@@ -331,6 +340,7 @@ conn.exec(`
     created_at TEXT NOT NULL
   );
 
+  CREATE INDEX IF NOT EXISTS idx_reset_tokens_hash ON password_reset_tokens(token_hash);
   CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id);
   CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
@@ -370,6 +380,7 @@ ensureColumn("messages", "pinned_at", "TEXT");
 ensureColumn("channel_members", "favorite", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("messages", "forwarded_from_message_id", "TEXT");
 ensureColumn("users", "role", "TEXT NOT NULL DEFAULT 'member'");
+ensureColumn("users", "avatar_url", "TEXT");
 
 // ---- RBAC (권한 그룹 / 메뉴별 접근 제어) ----
 // 롤은 4단계 고정: 최고 관리자 > 부서 관리자 > 일반 사용자 > 게스트(외부인).
@@ -426,6 +437,7 @@ function serializeUserRow(row) {
     name: row.name,
     department: row.department,
     role: row.role,
+    avatarUrl: row.avatar_url,
     passwordHash: row.password_hash,
     createdAt: row.created_at,
   };
@@ -477,17 +489,52 @@ function listUsers() {
   return conn.prepare("SELECT * FROM users ORDER BY created_at").all().map(serializeUserRow);
 }
 
-function updateUserProfile(userId, { name, department }) {
+function updateUserProfile(userId, { name, department, avatarUrl }) {
   const user = findUserById(userId);
   if (!user) return null;
   const nextName = typeof name === "string" && name.trim() ? name.trim() : user.name;
   const nextDept = typeof department === "string" ? department.trim() : user.department;
-  conn.prepare("UPDATE users SET name = ?, department = ? WHERE id = ?").run(nextName, nextDept, userId);
+  const nextAvatar = avatarUrl !== undefined ? avatarUrl : user.avatarUrl;
+  conn
+    .prepare("UPDATE users SET name = ?, department = ?, avatar_url = ? WHERE id = ?")
+    .run(nextName, nextDept, nextAvatar, userId);
   return findUserById(userId);
 }
 
 function updateUserPassword(userId, passwordHash) {
   conn.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(passwordHash, userId);
+}
+
+// ---- 비밀번호 재설정 (이메일 발송 인프라가 없는 MVP이므로, 실제 메일 대신
+// 재설정 링크를 서버 콘솔에 출력한다 — 운영 배포 시 이 부분만 메일 발송으로 교체하면 됨) ----
+
+function hashResetToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function createPasswordResetToken(userId) {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1시간
+  conn
+    .prepare(
+      "INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at) VALUES (?,?,?,?,?)"
+    )
+    .run(id(), userId, hashResetToken(rawToken), expiresAt, now());
+  return rawToken;
+}
+
+function findValidResetToken(rawToken) {
+  const row = conn
+    .prepare("SELECT * FROM password_reset_tokens WHERE token_hash = ?")
+    .get(hashResetToken(rawToken));
+  if (!row) return null;
+  if (row.used_at) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  return { id: row.id, userId: row.user_id };
+}
+
+function consumePasswordResetToken(tokenId) {
+  conn.prepare("UPDATE password_reset_tokens SET used_at = ? WHERE id = ?").run(now(), tokenId);
 }
 
 function updateUserRole(userId, role) {
@@ -2323,6 +2370,9 @@ module.exports = {
   searchUsers,
   updateUserProfile,
   updateUserPassword,
+  createPasswordResetToken,
+  findValidResetToken,
+  consumePasswordResetToken,
   updateUserRole,
   listRolePermissions,
   getRolePermission,
