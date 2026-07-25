@@ -18,6 +18,23 @@ function channelRoom(channelId) {
   return `channel:${channelId}`;
 }
 
+// 메시지 본문에서 "@이름" 형태로 언급된 채널 멤버를 찾아 알림 센터로 통지한다.
+function notifyMentions(channel, message, senderId) {
+  if (!message.content) return;
+  for (const member of channel.members) {
+    if (member.userId === senderId) continue;
+    const user = db.findUserById(member.userId);
+    if (!user || !message.content.includes(`@${user.name}`)) continue;
+    const sender = db.findUserById(senderId);
+    pushNotification(member.userId, {
+      type: "mention",
+      title: `${sender?.name || "누군가"}님이 회원님을 언급했습니다`,
+      body: message.content.slice(0, 80),
+      link: `/channel/${channel.id}?messageId=${message.id}`,
+    });
+  }
+}
+
 function initSocket(httpServer, corsOrigin) {
   io = new Server(httpServer, {
     cors: { origin: corsOrigin, credentials: true },
@@ -84,6 +101,10 @@ function initSocket(httpServer, corsOrigin) {
       if (!channel || !db.isMember(channel, userId)) {
         return reply({ error: "이 채널에 메시지를 보낼 수 없습니다." });
       }
+      const sender = db.findUserById(userId);
+      if (!db.getRolePermission(sender.role, "messenger").canWrite) {
+        return reply({ error: "메시지를 보낼 권한이 없습니다. (게스트는 읽기 전용입니다)" });
+      }
       let parentId = null;
       if (typeof parentMessageId === "string") {
         const parent = db.getMessageById(parentMessageId, userId);
@@ -100,6 +121,7 @@ function initSocket(httpServer, corsOrigin) {
         attachment: hasAttachment ? attachment : null,
       });
       io.to(channelRoom(channelId)).emit("message:new", message);
+      notifyMentions(channel, message, userId);
       reply({ message });
     });
 
@@ -256,6 +278,14 @@ function notifyChecklistUpdated(channelId) {
   io.to(channelRoom(channelId)).emit("channel:checklistUpdated", { channelId });
 }
 
+// 통합 알림 센터의 단일 진입점. DB에 저장하고 대상 사용자에게 실시간 푸시한다.
+// 다른 모듈(태스크 마감, 위키 멘션, 신규 리드 등)도 이 함수 하나만 호출하면 된다.
+function pushNotification(userId, { type, title, body, link }) {
+  const notification = db.createNotification({ userId, type, title, body, link });
+  if (io) io.to(userRoom(userId)).emit("notification:new", notification);
+  return notification;
+}
+
 module.exports = {
   initSocket,
   notifyChannelCreated,
@@ -263,4 +293,5 @@ module.exports = {
   notifyAttendanceChanged,
   notifyNoteUpdated,
   notifyChecklistUpdated,
+  pushNotification,
 };

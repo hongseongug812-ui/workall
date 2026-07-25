@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const db = require("./db");
 
 // NOTE: MVP uses email/password login as a stand-in for the real SSO/AD
 // integration planned for the org-chart phase (see 기획서 2.1). Swap this
@@ -32,4 +33,28 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { signToken, verifyToken, requireAuth, JWT_SECRET };
+const ACTION_FLAG = {
+  read: "canRead",
+  write: "canWrite",
+  update: "canUpdate",
+  delete: "canDelete",
+};
+
+// 권한 그룹(Role)에 따라 모듈별 read/write/update/delete 가능 여부를 검사한다.
+// requireAuth 이후에 붙여 쓴다 (req.userId 필요).
+function requirePermission(module, action = "read") {
+  const flag = ACTION_FLAG[action];
+  if (!flag) throw new Error(`알 수 없는 권한 액션: ${action}`);
+  return (req, res, next) => {
+    const user = db.findUserById(req.userId);
+    if (!user) return res.status(401).json({ error: "인증이 필요합니다." });
+    const perm = db.getRolePermission(user.role, module);
+    if (!perm[flag]) {
+      return res.status(403).json({ error: "이 작업을 수행할 권한이 없습니다." });
+    }
+    req.userRole = user.role;
+    next();
+  };
+}
+
+module.exports = { signToken, verifyToken, requireAuth, requirePermission, JWT_SECRET };

@@ -4,11 +4,11 @@ const bcrypt = require("bcryptjs");
 const db = require("./db");
 
 const SEED_USERS = [
-  { email: "admin@example.com", name: "김관리", department: "경영지원팀" },
-  { email: "dev1@example.com", name: "이개발", department: "개발팀" },
-  { email: "dev2@example.com", name: "박코딩", department: "개발팀" },
-  { email: "design1@example.com", name: "최디자인", department: "디자인팀" },
-  { email: "sales1@example.com", name: "정영업", department: "영업팀" },
+  { email: "admin@example.com", name: "김관리", department: "경영지원팀", role: "super_admin" },
+  { email: "dev1@example.com", name: "이개발", department: "개발팀", role: "member" },
+  { email: "dev2@example.com", name: "박코딩", department: "개발팀", role: "member" },
+  { email: "design1@example.com", name: "최디자인", department: "디자인팀", role: "dept_admin" },
+  { email: "sales1@example.com", name: "정영업", department: "영업팀", role: "member" },
 ];
 
 const SEED_PASSWORD = "password123";

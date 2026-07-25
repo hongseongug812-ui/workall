@@ -9,6 +9,16 @@ const channelsRoutes = require("./routes/channels");
 const searchRoutes = require("./routes/search");
 const uploadsRoutes = require("./routes/uploads");
 const attendanceRoutes = require("./routes/attendance");
+const adminRoutes = require("./routes/admin");
+const notificationsRoutes = require("./routes/notifications");
+const linksRoutes = require("./routes/links");
+const spacesRoutes = require("./routes/spaces").router;
+const projectsRoutes = require("./routes/projects").router;
+const tasksRoutes = require("./routes/tasks").router;
+const wikiRoutes = require("./routes/wiki");
+const crmRoutes = require("./routes/crm");
+const financeRoutes = require("./routes/finance");
+const dashboardRoutes = require("./routes/dashboard");
 const { initSocket } = require("./socket");
 
 const PORT = process.env.PORT || 4000;
@@ -26,6 +36,16 @@ app.use("/api/channels", channelsRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/uploads", uploadsRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/links", linksRoutes);
+app.use("/api/spaces", spacesRoutes);
+app.use("/api/projects", projectsRoutes);
+app.use("/api/tasks", tasksRoutes);
+app.use("/api/wiki", wikiRoutes);
+app.use("/api/crm", crmRoutes);
+app.use("/api/finance", financeRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "찾을 수 없는 경로입니다." }));
 

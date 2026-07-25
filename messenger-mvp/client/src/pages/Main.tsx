@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api";
 import { getSocket } from "../socket";
-import type { Attachment, Channel, ChannelNote, ChecklistItem, Message, PresenceStatus, User, UserStatus } from "../types";
+import type { AppNotification, Attachment, Channel, ChannelNote, ChecklistItem, Message, PresenceStatus, User, UserStatus } from "../types";
 import Sidebar from "../components/Sidebar";
 import IconRail from "../components/IconRail";
 import ChatWindow from "../components/ChatWindow";
@@ -11,6 +11,12 @@ import SearchPanel from "../components/SearchPanel";
 import AttendancePanel from "../components/AttendancePanel";
 import ProfileModal from "../components/ProfileModal";
 import ForwardModal from "../components/ForwardModal";
+import NotificationPanel from "../components/NotificationPanel";
+import ProjectsView from "../components/ProjectsView";
+import WikiView from "../components/WikiView";
+import CrmView from "../components/CrmView";
+import FinanceView from "../components/FinanceView";
+import HomeDashboard from "../components/HomeDashboard";
 
 const MESSAGE_PAGE_SIZE = 50;
 const DEFAULT_STATUS: UserStatus = { status: "online", statusMessage: null };
@@ -31,12 +37,16 @@ export default function Main() {
   const [showSearch, setShowSearch] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [statusesByUser, setStatusesByUser] = useState<Record<string, UserStatus>>({});
   const [pinnedByChannel, setPinnedByChannel] = useState<Record<string, Message[]>>({});
   const [notesByChannel, setNotesByChannel] = useState<Record<string, ChannelNote>>({});
   const [checklistByChannel, setChecklistByChannel] = useState<Record<string, ChecklistItem[]>>({});
   const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("messenger-mvp:theme") === "dark");
+  const [activeView, setActiveView] = useState<"home" | "messenger" | "projects" | "wiki" | "crm" | "finance">("home");
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
   const channelsRef = useRef<Channel[]>([]);
@@ -64,6 +74,10 @@ export default function Main() {
   useEffect(() => {
     refreshChannels();
     api.listUsers().then(({ users: list }) => setUsers(list));
+    api.getNotifications().then(({ notifications: list, unreadCount }) => {
+      setNotifications(list);
+      setUnreadNotificationCount(unreadCount);
+    });
   }, [refreshChannels]);
 
   // 메시지 하나를 상태 트리(메인 목록 또는 열린 스레드)에서 찾아 교체한다.
@@ -222,6 +236,11 @@ export default function Main() {
       });
     });
 
+    socket.on("notification:new", (notification) => {
+      setNotifications((prev) => [notification, ...prev].slice(0, 30));
+      setUnreadNotificationCount((prev) => prev + 1);
+    });
+
     return () => {
       socket.off("presence:snapshot");
       socket.off("presence:update");
@@ -235,6 +254,7 @@ export default function Main() {
       socket.off("channel:pinnedChanged");
       socket.off("channel:noteUpdated");
       socket.off("channel:checklistUpdated");
+      socket.off("notification:new");
     };
   }, [user, refreshChannels, patchMessage, notifyIfBackground]);
 
@@ -424,6 +444,18 @@ export default function Main() {
     setChannels((prev) => prev.map((c) => (c.id === channelId ? channel : c)));
   }, []);
 
+  const markNotificationRead = useCallback(async (notificationId: string) => {
+    await api.markNotificationRead(notificationId);
+    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, readAt: new Date().toISOString() } : n)));
+    setUnreadNotificationCount((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    const now = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: now })));
+    setUnreadNotificationCount(0);
+  }, []);
+
   const leaveChannel = useCallback(async (channelId: string) => {
     await api.leaveChannel(channelId);
     setChannels((prev) => prev.filter((c) => c.id !== channelId));
@@ -449,54 +481,76 @@ export default function Main() {
         onToggleDarkMode={() => setDarkMode((v) => !v)}
         onOpenSearch={() => setShowSearch(true)}
         onOpenAttendance={() => setShowAttendance(true)}
+        unreadNotificationCount={unreadNotificationCount}
+        onOpenNotifications={() => setShowNotifications(true)}
         onOpenProfile={() => setShowProfile(true)}
         onLogout={logout}
+        activeView={activeView}
+        onSelectView={setActiveView}
       />
-      <Sidebar
-        currentUser={user}
-        channels={channels}
-        users={users}
-        onlineUserIds={onlineUserIds}
-        activeChannelId={activeChannelId}
-        onSelectChannel={openChannel}
-        onSelectUser={openDmWith}
-        onNewGroup={() => setShowNewGroup(true)}
-        myStatus={statusesByUser[user.id] || DEFAULT_STATUS}
-        onChangeStatus={changeStatus}
-        onToggleFavorite={setChannelFavorite}
-      />
-      <ChatWindow
-        currentUser={user}
-        channel={activeChannel}
-        users={users}
-        messages={activeChannel ? messagesByChannel[activeChannel.id] || [] : []}
-        pinnedMessages={activeChannel ? pinnedByChannel[activeChannel.id] || [] : []}
-        channelNote={activeChannel ? notesByChannel[activeChannel.id] : undefined}
-        checklistItems={activeChannel ? checklistByChannel[activeChannel.id] || [] : []}
-        onlineUserIds={onlineUserIds}
-        statusesByUser={statusesByUser}
-        typingUserIds={activeChannel ? typingUsersByChannel[activeChannel.id] || new Set() : new Set()}
-        hasMoreMessages={activeChannel ? !!hasMoreByChannel[activeChannel.id] : false}
-        loadingMoreMessages={loadingMore}
-        onLoadMoreMessages={loadMoreMessages}
-        onSend={sendMessage}
-        onEdit={editMessage}
-        onDelete={deleteMessage}
-        onReact={toggleReaction}
-        onPin={togglePin}
-        onForward={setForwardMessageId}
-        onOpenThread={openThread}
-        activeThreadParent={activeThreadParent}
-        threadReplies={activeThreadId ? threadRepliesByParent[activeThreadId] || [] : []}
-        onCloseThread={() => setActiveThreadId(null)}
-        onAddMembers={addMembersToChannel}
-        onLeaveChannel={leaveChannel}
-        onSetMuted={setChannelMuted}
-        onNoteChange={updateChannelNote}
-        onAddChecklistItem={addChecklistItem}
-        onToggleChecklistItem={toggleChecklistItem}
-        onDeleteChecklistItem={deleteChecklistItem}
-      />
+      {activeView === "home" ? (
+        <HomeDashboard
+          currentUser={user}
+          onNavigateToProjects={() => setActiveView("projects")}
+          onNavigateToWiki={() => setActiveView("wiki")}
+        />
+      ) : activeView === "messenger" ? (
+        <>
+          <Sidebar
+            currentUser={user}
+            channels={channels}
+            users={users}
+            onlineUserIds={onlineUserIds}
+            activeChannelId={activeChannelId}
+            onSelectChannel={openChannel}
+            onSelectUser={openDmWith}
+            onNewGroup={() => setShowNewGroup(true)}
+            myStatus={statusesByUser[user.id] || DEFAULT_STATUS}
+            onChangeStatus={changeStatus}
+            onToggleFavorite={setChannelFavorite}
+          />
+          <ChatWindow
+            currentUser={user}
+            channel={activeChannel}
+            users={users}
+            messages={activeChannel ? messagesByChannel[activeChannel.id] || [] : []}
+            pinnedMessages={activeChannel ? pinnedByChannel[activeChannel.id] || [] : []}
+            channelNote={activeChannel ? notesByChannel[activeChannel.id] : undefined}
+            checklistItems={activeChannel ? checklistByChannel[activeChannel.id] || [] : []}
+            onlineUserIds={onlineUserIds}
+            statusesByUser={statusesByUser}
+            typingUserIds={activeChannel ? typingUsersByChannel[activeChannel.id] || new Set() : new Set()}
+            hasMoreMessages={activeChannel ? !!hasMoreByChannel[activeChannel.id] : false}
+            loadingMoreMessages={loadingMore}
+            onLoadMoreMessages={loadMoreMessages}
+            onSend={sendMessage}
+            onEdit={editMessage}
+            onDelete={deleteMessage}
+            onReact={toggleReaction}
+            onPin={togglePin}
+            onForward={setForwardMessageId}
+            onOpenThread={openThread}
+            activeThreadParent={activeThreadParent}
+            threadReplies={activeThreadId ? threadRepliesByParent[activeThreadId] || [] : []}
+            onCloseThread={() => setActiveThreadId(null)}
+            onAddMembers={addMembersToChannel}
+            onLeaveChannel={leaveChannel}
+            onSetMuted={setChannelMuted}
+            onNoteChange={updateChannelNote}
+            onAddChecklistItem={addChecklistItem}
+            onToggleChecklistItem={toggleChecklistItem}
+            onDeleteChecklistItem={deleteChecklistItem}
+          />
+        </>
+      ) : activeView === "projects" ? (
+        <ProjectsView currentUser={user} users={users} />
+      ) : activeView === "wiki" ? (
+        <WikiView currentUser={user} users={users} />
+      ) : activeView === "crm" ? (
+        <CrmView currentUser={user} users={users} />
+      ) : (
+        <FinanceView currentUser={user} users={users} />
+      )}
       {showNewGroup && (
         <NewGroupModal users={users} onCancel={() => setShowNewGroup(false)} onCreate={handleCreateGroup} />
       )}
@@ -506,9 +560,21 @@ export default function Main() {
           currentUser={user}
           onClose={() => setShowSearch(false)}
           onSelectResult={jumpToSearchResult}
+          onSelectUser={(userId) => {
+            setShowSearch(false);
+            openDmWith(userId);
+          }}
         />
       )}
       {showAttendance && <AttendancePanel currentUser={user} onClose={() => setShowAttendance(false)} />}
+      {showNotifications && (
+        <NotificationPanel
+          notifications={notifications}
+          onClose={() => setShowNotifications(false)}
+          onMarkRead={markNotificationRead}
+          onMarkAllRead={markAllNotificationsRead}
+        />
+      )}
       {showProfile && (
         <ProfileModal currentUser={user} onClose={() => setShowProfile(false)} onUpdated={updateUser} />
       )}

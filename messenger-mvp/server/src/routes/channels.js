@@ -1,6 +1,6 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth } = require("../auth");
+const { requireAuth, requirePermission } = require("../auth");
 const { publicUser } = require("./auth");
 const { notifyChannelCreated, notifyMembersChanged, notifyNoteUpdated, notifyChecklistUpdated } = require("../socket");
 
@@ -49,7 +49,7 @@ router.get("/", requireAuth, (req, res) => {
   res.json({ channels });
 });
 
-router.post("/", requireAuth, (req, res) => {
+router.post("/", requireAuth, requirePermission("messenger", "write"), (req, res) => {
   const { type, memberIds, name } = req.body || {};
 
   if (type === "dm") {

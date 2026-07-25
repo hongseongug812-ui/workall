@@ -8,6 +8,7 @@ interface Props {
   currentUser: User;
   onClose: () => void;
   onSelectResult: (message: Message) => void;
+  onSelectUser: (userId: string) => void;
 }
 
 function formatDateTime(iso: string) {
@@ -19,9 +20,10 @@ function formatDateTime(iso: string) {
   });
 }
 
-export default function SearchPanel({ channels, currentUser, onClose, onSelectResult }: Props) {
+export default function SearchPanel({ channels, currentUser, onClose, onSelectResult, onSelectUser }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Message[]>([]);
+  const [directoryResults, setDirectoryResults] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
 
@@ -29,6 +31,7 @@ export default function SearchPanel({ channels, currentUser, onClose, onSelectRe
     const trimmed = query.trim();
     if (trimmed.length < 2) {
       setResults([]);
+      setDirectoryResults([]);
       setError(null);
       return;
     }
@@ -36,8 +39,9 @@ export default function SearchPanel({ channels, currentUser, onClose, onSelectRe
     const timer = setTimeout(() => {
       api
         .search(trimmed)
-        .then(({ messages }) => {
+        .then(({ messages, directory }) => {
           setResults(messages);
+          setDirectoryResults(directory);
           setError(null);
         })
         .catch((err) => setError(err instanceof ApiError ? err.message : "검색에 실패했습니다."))
@@ -76,24 +80,51 @@ export default function SearchPanel({ channels, currentUser, onClose, onSelectRe
 
         {error && <p className="auth-error">{error}</p>}
         {searching && <p className="sidebar-empty">검색 중...</p>}
-        {!searching && query.trim().length >= 2 && results.length === 0 && !error && (
+        {!searching && query.trim().length >= 2 && results.length === 0 && directoryResults.length === 0 && !error && (
           <p className="sidebar-empty">검색 결과가 없습니다.</p>
         )}
 
-        <ul className="search-results">
-          {results.map((m) => (
-            <li key={m.id}>
-              <button className="search-result-item" onClick={() => onSelectResult(m)}>
-                <div className="search-result-meta">
-                  <span className="search-result-channel">{channelLabel(m.channelId)}</span>
-                  <span className="search-result-sender">{senderName(m.channelId, m.senderId)}</span>
-                  <span className="search-result-time">{formatDateTime(m.createdAt)}</span>
-                </div>
-                <div className="search-result-content">{m.content}</div>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {directoryResults.length > 0 && (
+          <div>
+            <div className="sidebar-section-header">
+              <span>구성원</span>
+            </div>
+            <ul className="search-results">
+              {directoryResults.map((u) => (
+                <li key={u.id}>
+                  <button className="search-result-item" onClick={() => onSelectUser(u.id)}>
+                    <div className="search-result-meta">
+                      <span className="search-result-sender">{u.name}</span>
+                      <span className="search-result-channel">{u.department}</span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {results.length > 0 && (
+          <div>
+            <div className="sidebar-section-header">
+              <span>메시지</span>
+            </div>
+            <ul className="search-results">
+              {results.map((m) => (
+                <li key={m.id}>
+                  <button className="search-result-item" onClick={() => onSelectResult(m)}>
+                    <div className="search-result-meta">
+                      <span className="search-result-channel">{channelLabel(m.channelId)}</span>
+                      <span className="search-result-sender">{senderName(m.channelId, m.senderId)}</span>
+                      <span className="search-result-time">{formatDateTime(m.createdAt)}</span>
+                    </div>
+                    <div className="search-result-content">{m.content}</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
