@@ -4527,3 +4527,79 @@ textarea:focus-visible {
     grid-column: span 2;
   }
 }
+
+/* ---- 신규 모듈 시각 다듬기 (버튼/카드/테이블 hover) ---- */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: 1px solid var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  transition: filter 0.12s ease, transform 0.12s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.kanban-card,
+.widget-card,
+.finance-chart-card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.kanban-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.widget-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.project-list-item,
+.wiki-tree-item-title {
+  transition: background 0.12s ease;
+}
+
+.task-table tbody tr,
+.wiki-version-row,
+.crm-activity-form,
+.finance-chart-card {
+  transition: background 0.12s ease;
+}
+
+.task-table tbody tr:hover {
+  background: var(--hover);
+}
+
+.kanban-column-header,
+.projects-main-header h2,
+.wiki-page-title,
+.task-detail-title {
+  letter-spacing: -0.01em;
+}
+
+.projects-empty-state svg,
+.projects-empty-state .ui-icon {
+  color: var(--border);
+}
+
+.space-select {
+  transition: border-color 0.12s ease;
+}
+
+.space-select:hover {
+  border-color: var(--accent);
+}

@@ -213,7 +213,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
           <>
             <div className="projects-main-header">
               <h2>거래 내역</h2>
-              <button onClick={() => setShowNewTx(true)}><Icon name="plus" size={14} /> 새 거래</button>
+              <button className="btn-primary" onClick={() => setShowNewTx(true)}><Icon name="plus" size={14} /> 새 거래</button>
             </div>
             <div className="task-list-view">
               <table className="task-table">
@@ -292,7 +292,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
           <>
             <div className="projects-main-header">
               <h2>인보이스</h2>
-              <button onClick={() => setShowNewInvoice(true)}><Icon name="plus" size={14} /> 새 인보이스</button>
+              <button className="btn-primary" onClick={() => setShowNewInvoice(true)}><Icon name="plus" size={14} /> 새 인보이스</button>
             </div>
             <div className="task-list-view">
               <table className="task-table">

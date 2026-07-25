@@ -134,7 +134,7 @@ export default function CrmView({ currentUser, users }: Props) {
                 <button className="link-button" onClick={() => setShowAddField(true)}>
                   <Icon name="plus" size={12} /> 필드 추가
                 </button>
-                <button onClick={() => setShowNewCustomer(true)}>
+                <button className="btn-primary" onClick={() => setShowNewCustomer(true)}>
                   <Icon name="plus" size={14} /> 새 고객
                 </button>
               </div>

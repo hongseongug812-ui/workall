@@ -72,7 +72,7 @@ export default function HomeDashboard({ currentUser, onNavigateToProjects, onNav
     <div className="projects-main home-dashboard-page">
       <div className="projects-main-header">
         <h2>안녕하세요, {currentUser.name}님</h2>
-        <button onClick={() => setShowAddWidget(true)}>
+        <button className="btn-primary" onClick={() => setShowAddWidget(true)}>
           <Icon name="plus" size={14} /> 위젯 추가
         </button>
       </div>
