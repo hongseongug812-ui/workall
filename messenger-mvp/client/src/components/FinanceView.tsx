@@ -159,7 +159,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
       <div className="projects-main">
         {!activeSpaceId && (
           <div className="projects-empty-state">
-            <Icon name="board" size={40} />
+            <div className="projects-empty-state-icon"><Icon name="wallet" size={32} /></div>
             <p>스페이스를 먼저 선택하세요.</p>
           </div>
         )}
@@ -216,6 +216,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
               <button className="btn-primary" onClick={() => setShowNewTx(true)}><Icon name="plus" size={14} /> 새 거래</button>
             </div>
             <div className="task-list-view">
+              <div className="task-table-card">
               <table className="task-table">
                 <thead>
                   <tr>
@@ -226,10 +227,10 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
                   {transactions.map((t) => (
                     <tr key={t.id}>
                       <td>{t.date}</td>
-                      <td><span className={`priority-badge ${t.kind === "income" ? "priority-low" : "priority-high"}`}>{t.kind === "income" ? "수입" : "지출"}</span></td>
+                      <td><span className={`badge-kind ${t.kind === "income" ? "badge-income" : "badge-expense"}`}>{t.kind === "income" ? "수입" : "지출"}</span></td>
                       <td>{t.category}{t.memo ? ` · ${t.memo}` : ""}</td>
                       <td>{customerName(customers, t.customerId)}</td>
-                      <td>{won(t.amount)}</td>
+                      <td className={t.kind === "income" ? "amount-income" : "amount-expense"}>{t.kind === "income" ? "+" : "-"}{won(t.amount)}</td>
                       <td>{t.receipt ? <a href={t.receipt.url} target="_blank" rel="noreferrer"><Icon name="attach" size={13} /></a> : "-"}</td>
                       <td><button className="link-button" onClick={() => handleDeleteTx(t.id)}><Icon name="trash" size={12} /></button></td>
                     </tr>
@@ -237,6 +238,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
                   {transactions.length === 0 && <tr><td colSpan={7} className="sidebar-empty">거래 기록이 없습니다.</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
@@ -245,7 +247,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
           <>
             <div className="projects-main-header">
               <h2>구독(반복 결제)</h2>
-              <button onClick={() => setShowNewSub((v) => !v)}><Icon name="plus" size={14} /> 새 구독</button>
+              <button className="btn-primary" onClick={() => setShowNewSub((v) => !v)}><Icon name="plus" size={14} /> 새 구독</button>
             </div>
             {showNewSub && (
               <form className="crm-filter-row" onSubmit={handleAddSubscription} style={{ marginBottom: 16, flexWrap: "wrap" }}>
@@ -261,6 +263,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
               </form>
             )}
             <div className="task-list-view">
+              <div className="task-table-card">
               <table className="task-table">
                 <thead>
                   <tr><th>이름</th><th>구분</th><th>카테고리</th><th>금액</th><th>결제일</th><th>상태</th><th></th></tr>
@@ -269,12 +272,12 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
                   {subscriptions.map((s) => (
                     <tr key={s.id}>
                       <td>{s.name}</td>
-                      <td>{s.kind === "income" ? "수입" : "지출"}</td>
+                      <td><span className={`badge-kind ${s.kind === "income" ? "badge-income" : "badge-expense"}`}>{s.kind === "income" ? "수입" : "지출"}</span></td>
                       <td>{s.category}</td>
                       <td>{won(s.amount)}</td>
                       <td>매월 {s.dayOfMonth}일</td>
                       <td>
-                        <button className="link-button" onClick={() => handleToggleSubscription(s)}>
+                        <button className={`status-pill ${s.active ? "on" : ""}`} onClick={() => handleToggleSubscription(s)}>
                           {s.active ? "활성" : "중지됨"}
                         </button>
                       </td>
@@ -284,6 +287,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
                   {subscriptions.length === 0 && <tr><td colSpan={7} className="sidebar-empty">등록된 구독이 없습니다.</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
@@ -295,6 +299,7 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
               <button className="btn-primary" onClick={() => setShowNewInvoice(true)}><Icon name="plus" size={14} /> 새 인보이스</button>
             </div>
             <div className="task-list-view">
+              <div className="task-table-card">
               <table className="task-table">
                 <thead>
                   <tr><th>번호</th><th>고객</th><th>발행일</th><th>상태</th><th></th></tr>
@@ -305,13 +310,14 @@ export default function FinanceView({ currentUser: _currentUser, users: _users }
                       <td className="task-table-title" onClick={() => setPrintInvoiceId(inv.id)}>{inv.invoiceNumber}</td>
                       <td>{customerName(customers, inv.customerId)}</td>
                       <td>{inv.issueDate}</td>
-                      <td>{inv.status}</td>
+                      <td><span className={`invoice-status invoice-status-${inv.status}`}>{inv.status === "draft" ? "초안" : inv.status === "sent" ? "발송됨" : "결제완료"}</span></td>
                       <td><button className="link-button" onClick={() => setPrintInvoiceId(inv.id)}><Icon name="file" size={12} /> 보기</button></td>
                     </tr>
                   ))}
                   {invoices.length === 0 && <tr><td colSpan={5} className="sidebar-empty">인보이스가 없습니다.</td></tr>}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}

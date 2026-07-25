@@ -3209,29 +3209,30 @@ textarea:focus-visible {
 }
 
 .projects-sidebar {
-  width: 260px;
+  width: 264px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
-  background: var(--panel);
-  padding: 16px;
+  background: var(--panel-soft);
+  padding: 18px 14px;
   overflow-y: auto;
 }
 
 .projects-sidebar-header {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .space-select {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--panel);
   color: var(--text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
 }
 
 .project-list {
@@ -3243,13 +3244,14 @@ textarea:focus-visible {
 .project-list-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 13.5px;
   color: var(--text);
+  border-left: 3px solid transparent;
 }
 
 .project-list-item:hover {
@@ -3257,8 +3259,10 @@ textarea:focus-visible {
 }
 
 .project-list-item.active {
-  background: var(--accent-soft, rgba(108, 92, 231, 0.12));
-  font-weight: 600;
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .project-color-dot {
@@ -3273,7 +3277,7 @@ textarea:focus-visible {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px 24px;
+  padding: 28px 32px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -3284,39 +3288,66 @@ textarea:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   color: var(--text-muted);
+  text-align: center;
+}
+
+.projects-empty-state p {
+  max-width: 280px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.projects-empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .projects-main-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
   flex-shrink: 0;
 }
 
 .projects-main-header h2 {
-  font-size: 18px;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .view-tabs {
   display: flex;
   gap: 4px;
-  background: var(--panel-soft, var(--bg));
+  background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 3px;
+  box-shadow: var(--shadow-sm);
 }
 
 .view-tabs button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 7px 13px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-muted);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.view-tabs button:hover {
+  color: var(--text);
 }
 
 .view-tabs button.active {
@@ -3335,24 +3366,25 @@ textarea:focus-visible {
 }
 
 .kanban-column {
-  width: 260px;
+  width: 272px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--panel-soft, var(--bg));
+  background: var(--panel-soft);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 14px;
+  padding: 12px;
   max-height: 100%;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
 .kanban-column.drag-over {
   border-color: var(--accent);
-  background: var(--accent-soft, rgba(108, 92, 231, 0.06));
+  background: var(--accent-soft);
 }
 
 .kanban-column-new {
-  width: 200px;
+  width: 210px;
   justify-content: flex-start;
   background: transparent;
   border-style: dashed;
@@ -3362,44 +3394,50 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--text-muted);
-  padding: 4px 6px 10px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  padding: 4px 6px 12px;
 }
 
 .kanban-column-count {
-  background: var(--bg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   border-radius: 999px;
-  padding: 1px 8px;
+  padding: 1px 9px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .kanban-column-body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   overflow-y: auto;
 }
 
 .kanban-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
   cursor: grab;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
-.kanban-card:hover {
-  box-shadow: var(--shadow-sm);
+.kanban-card:active {
+  cursor: grabbing;
 }
 
 .kanban-card-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .kanban-card-meta {
@@ -3506,20 +3544,31 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  margin-bottom: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
   border-radius: 10px;
-  background: var(--accent-soft, rgba(108, 92, 231, 0.1));
-  font-size: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .task-list-bulk-bar select {
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--panel);
   color: var(--text);
   font-size: 12px;
+  font-weight: 500;
+}
+
+.task-table-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .task-table {
@@ -3528,27 +3577,46 @@ textarea:focus-visible {
   font-size: 13px;
 }
 
+.task-table thead {
+  background: var(--panel-soft);
+}
+
 .task-table th {
   text-align: left;
   font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
-  padding: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .task-table td {
-  padding: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
 }
 
+.task-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.task-table tbody tr {
+  transition: background 0.1s ease;
+}
+
+.task-table tbody tr:hover {
+  background: var(--hover);
+}
+
 .task-table tr.selected {
-  background: var(--accent-soft, rgba(108, 92, 231, 0.06));
+  background: var(--accent-soft);
 }
 
 .task-table-title {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .task-table-title:hover {
@@ -4199,14 +4267,20 @@ textarea:focus-visible {
 .finance-dashboard {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 18px;
 }
 
 .finance-chart-card {
-  background: var(--panel-soft, var(--bg));
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.finance-chart-card .sidebar-section-header {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .cashflow-chart {
@@ -4410,11 +4484,15 @@ textarea:focus-visible {
 
 .widget-card {
   grid-column: span 2;
-  background: var(--panel-soft, var(--bg));
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 14px;
+  padding: 18px 20px;
   cursor: grab;
+}
+
+.widget-card:active {
+  cursor: grabbing;
 }
 
 .widget-card.widget-size-small {
@@ -4440,8 +4518,9 @@ textarea:focus-visible {
 }
 
 .widget-card-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .widget-card-controls {
@@ -4452,24 +4531,27 @@ textarea:focus-visible {
 
 .widget-card-controls select {
   font-size: 11px;
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--panel-soft);
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .widget-card-subtitle {
   font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .widget-task-list,
 .widget-wiki-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
 }
 
@@ -4479,6 +4561,7 @@ textarea:focus-visible {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  padding: 4px 0;
 }
 
 .widget-task-list li:hover,
@@ -4487,13 +4570,20 @@ textarea:focus-visible {
 }
 
 .widget-finance-numbers {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 15px;
 }
 
+.widget-finance-numbers strong {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
 .widget-big-number {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
 }
 
 .widget-type-picker {
@@ -4534,14 +4624,19 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 9px 18px;
+  border-radius: 9px;
   background: var(--accent);
   color: var(--accent-contrast);
   border: 1px solid var(--accent);
   font-size: 13px;
-  font-weight: 600;
-  transition: filter 0.12s ease, transform 0.12s ease;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  transition: filter 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-primary:hover {
@@ -4573,31 +4668,19 @@ textarea:focus-visible {
   transition: background 0.12s ease;
 }
 
-.task-table tbody tr,
 .wiki-version-row,
-.crm-activity-form,
-.finance-chart-card {
+.crm-activity-form {
   transition: background 0.12s ease;
 }
 
-.task-table tbody tr:hover {
-  background: var(--hover);
-}
-
 .kanban-column-header,
-.projects-main-header h2,
 .wiki-page-title,
 .task-detail-title {
   letter-spacing: -0.01em;
 }
 
-.projects-empty-state svg,
-.projects-empty-state .ui-icon {
-  color: var(--border);
-}
-
 .space-select {
-  transition: border-color 0.12s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .space-select:hover {
@@ -4635,4 +4718,71 @@ textarea:focus-visible {
 
 .auth-forgot-link:hover {
   color: var(--accent);
+}
+
+/* ---- 재무 상태 배지 / 금액 강조 ---- */
+
+.badge-kind {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.badge-income {
+  background: rgba(0, 184, 148, 0.15);
+  color: #00b894;
+}
+
+.badge-expense {
+  background: rgba(232, 67, 147, 0.15);
+  color: #e84393;
+}
+
+.amount-income {
+  color: #00b894;
+  font-weight: 700;
+}
+
+.amount-expense {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.status-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.status-pill.on {
+  background: rgba(0, 184, 148, 0.15);
+  color: #00b894;
+  border-color: transparent;
+}
+
+.invoice-status {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.invoice-status-draft {
+  background: var(--panel-soft);
+  color: var(--text-muted);
+}
+
+.invoice-status-sent {
+  background: rgba(9, 132, 227, 0.15);
+  color: #0984e3;
+}
+
+.invoice-status-paid {
+  background: rgba(0, 184, 148, 0.15);
+  color: #00b894;
 }

@@ -164,7 +164,7 @@ export default function WikiView({ currentUser, users }: Props) {
         {error && <p className="auth-error">{error}</p>}
         {!page && (
           <div className="projects-empty-state">
-            <Icon name="file" size={40} />
+            <div className="projects-empty-state-icon"><Icon name="file" size={32} /></div>
             <p>왼쪽에서 문서를 선택하거나 새로 만들어보세요.</p>
           </div>
         )}

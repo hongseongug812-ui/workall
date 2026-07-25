@@ -79,7 +79,7 @@ export default function HomeDashboard({ currentUser, onNavigateToProjects, onNav
 
       {widgets.length === 0 ? (
         <div className="projects-empty-state">
-          <Icon name="board" size={40} />
+          <div className="projects-empty-state-icon"><Icon name="board" size={32} /></div>
           <p>위젯을 추가해서 나만의 홈 화면을 꾸며보세요.</p>
         </div>
       ) : (

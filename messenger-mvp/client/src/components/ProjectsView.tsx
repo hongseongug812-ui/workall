@@ -158,7 +158,7 @@ export default function ProjectsView({ currentUser, users }: Props) {
         {error && <p className="auth-error">{error}</p>}
         {!project && (
           <div className="projects-empty-state">
-            <Icon name="board" size={40} />
+            <div className="projects-empty-state-icon"><Icon name="board" size={32} /></div>
             <p>왼쪽에서 프로젝트를 선택하거나 새로 만들어보세요.</p>
           </div>
         )}

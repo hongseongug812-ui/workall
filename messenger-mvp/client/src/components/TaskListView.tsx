@@ -80,6 +80,7 @@ export default function TaskListView({ statuses, tasks, users, onOpenTask, onBul
         </div>
       )}
 
+      <div className="task-table-card">
       <table className="task-table">
         <thead>
           <tr>
@@ -117,6 +118,7 @@ export default function TaskListView({ statuses, tasks, users, onOpenTask, onBul
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

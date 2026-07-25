@@ -121,7 +121,7 @@ export default function CrmView({ currentUser, users }: Props) {
       <div className="projects-main">
         {!activeSpaceId && (
           <div className="projects-empty-state">
-            <Icon name="users" size={40} />
+            <div className="projects-empty-state-icon"><Icon name="users" size={32} /></div>
             <p>스페이스를 먼저 선택하세요. (프로젝트 메뉴에서 스페이스를 생성할 수 있어요)</p>
           </div>
         )}
@@ -154,6 +154,7 @@ export default function CrmView({ currentUser, users }: Props) {
             </div>
 
             <div className="task-list-view">
+              <div className="task-table-card">
               <table className="task-table">
                 <thead>
                   <tr>
@@ -181,6 +182,7 @@ export default function CrmView({ currentUser, users }: Props) {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
