@@ -353,6 +353,21 @@ export interface FinanceSummary {
   currentMonth: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  spaceId: string;
+  title: string;
+  description: string | null;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  location: string | null;
+  meetingUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+  attendeeIds: string[];
+}
+
 export type MailBox = "inbox" | "sent" | "draft" | "trash";
 
 export interface MailRecipient {

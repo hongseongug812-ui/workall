@@ -22,6 +22,7 @@ import type {
   CrmFieldType,
   CrmLead,
   CrmLeadStage,
+  CalendarEvent,
   DashboardWidget,
   Mail,
   MailBox,
@@ -337,6 +338,18 @@ export const api = {
   sendMailDraft: (mailId: string) => request<{ mail: Mail }>(`/api/mail/${mailId}/send`, { method: "POST" }),
   starMail: (mailId: string) => request<{ mail: Mail }>(`/api/mail/${mailId}/star`, { method: "POST" }),
   deleteMail: (mailId: string) => request<void>(`/api/mail/${mailId}`, { method: "DELETE" }),
+
+  listCalendarEvents: (spaceId: string, month?: string) =>
+    request<{ events: CalendarEvent[] }>(`/api/calendar/events?${new URLSearchParams({ spaceId, ...(month ? { month } : {}) })}`),
+  createCalendarEvent: (data: {
+    spaceId: string; title: string; description?: string; startAt: string; endAt: string;
+    allDay?: boolean; location?: string; attendeeIds?: string[]; withMeeting?: boolean;
+  }) => request<{ event: CalendarEvent }>("/api/calendar/events", { method: "POST", body: JSON.stringify(data) }),
+  getCalendarEvent: (eventId: string) => request<{ event: CalendarEvent }>(`/api/calendar/events/${eventId}`),
+  updateCalendarEvent: (eventId: string, data: Partial<{
+    title: string; description: string; startAt: string; endAt: string; allDay: boolean; location: string; attendeeIds: string[];
+  }>) => request<{ event: CalendarEvent }>(`/api/calendar/events/${eventId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteCalendarEvent: (eventId: string) => request<void>(`/api/calendar/events/${eventId}`, { method: "DELETE" }),
 };
 
 export { ApiError, API_BASE };

@@ -4968,3 +4968,14 @@ textarea:focus-visible {
   line-height: 1.7;
   font-size: 14px;
 }
+
+/* ---- 캘린더 모듈 ---- */
+
+.calendar-cell-clickable {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.calendar-cell-clickable:hover {
+  background: var(--hover);
+}

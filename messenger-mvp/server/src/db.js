@@ -346,6 +346,26 @@ conn.exec(`
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS calendar_events (
+    id TEXT PRIMARY KEY,
+    space_id TEXT NOT NULL REFERENCES spaces(id),
+    title TEXT NOT NULL,
+    description TEXT,
+    start_at TEXT NOT NULL,
+    end_at TEXT NOT NULL,
+    all_day INTEGER NOT NULL DEFAULT 0,
+    location TEXT,
+    meeting_url TEXT,
+    created_by TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS calendar_event_attendees (
+    event_id TEXT NOT NULL REFERENCES calendar_events(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    PRIMARY KEY (event_id, user_id)
+  );
+
   CREATE TABLE IF NOT EXISTS entity_links (
     id TEXT PRIMARY KEY,
     from_module TEXT NOT NULL,
@@ -394,6 +414,7 @@ conn.exec(`
   CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_user ON dashboard_widgets(user_id, position);
   CREATE INDEX IF NOT EXISTS idx_mail_boxes_user ON mail_boxes(user_id, box, created_at);
   CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail ON mail_recipients(mail_id);
+  CREATE INDEX IF NOT EXISTS idx_calendar_events_space ON calendar_events(space_id, start_at);
 `);
 
 // CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
@@ -2535,6 +2556,108 @@ function unreadMailCount(userId) {
     .get(userId).n;
 }
 
+// ---- 캘린더 ----
+
+function makeMeetingUrl() {
+  const slug = crypto.randomBytes(6).toString("hex");
+  return `https://meet.jit.si/WorkAll-${slug}`;
+}
+
+function serializeEventRow(row) {
+  const attendeeIds = conn
+    .prepare("SELECT user_id FROM calendar_event_attendees WHERE event_id = ?")
+    .all(row.id)
+    .map((r) => r.user_id);
+  return {
+    id: row.id,
+    spaceId: row.space_id,
+    title: row.title,
+    description: row.description,
+    startAt: row.start_at,
+    endAt: row.end_at,
+    allDay: !!row.all_day,
+    location: row.location,
+    meetingUrl: row.meeting_url,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    attendeeIds,
+  };
+}
+
+function createCalendarEvent({ spaceId, title, description, startAt, endAt, allDay, location, attendeeIds = [], withMeeting, createdBy }) {
+  const event = {
+    id: id(),
+    spaceId,
+    title,
+    description: description || null,
+    startAt,
+    endAt,
+    allDay: allDay ? 1 : 0,
+    location: location || null,
+    meetingUrl: withMeeting ? makeMeetingUrl() : null,
+    createdBy,
+    createdAt: now(),
+  };
+  conn
+    .prepare(
+      `INSERT INTO calendar_events (id, space_id, title, description, start_at, end_at, all_day, location, meeting_url, created_by, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+    )
+    .run(
+      event.id, event.spaceId, event.title, event.description, event.startAt, event.endAt,
+      event.allDay, event.location, event.meetingUrl, event.createdBy, event.createdAt
+    );
+  const insertAttendee = conn.prepare("INSERT INTO calendar_event_attendees (event_id, user_id) VALUES (?,?)");
+  for (const uid of new Set([createdBy, ...attendeeIds])) insertAttendee.run(event.id, uid);
+  return findCalendarEventById(event.id);
+}
+
+function findCalendarEventById(eventId) {
+  const row = conn.prepare("SELECT * FROM calendar_events WHERE id = ?").get(eventId);
+  return row ? serializeEventRow(row) : null;
+}
+
+function listCalendarEvents(spaceId, { month } = {}) {
+  let sql = "SELECT * FROM calendar_events WHERE space_id = ?";
+  const params = [spaceId];
+  if (month) {
+    sql += " AND start_at LIKE ?";
+    params.push(`${month}%`);
+  }
+  sql += " ORDER BY start_at ASC";
+  return conn.prepare(sql).all(...params).map(serializeEventRow);
+}
+
+function updateCalendarEvent(eventId, { title, description, startAt, endAt, allDay, location, attendeeIds }) {
+  const existing = conn.prepare("SELECT * FROM calendar_events WHERE id = ?").get(eventId);
+  if (!existing) return null;
+  conn
+    .prepare(
+      `UPDATE calendar_events SET title = ?, description = ?, start_at = ?, end_at = ?, all_day = ?, location = ? WHERE id = ?`
+    )
+    .run(
+      title ?? existing.title,
+      description !== undefined ? description : existing.description,
+      startAt ?? existing.start_at,
+      endAt ?? existing.end_at,
+      allDay !== undefined ? (allDay ? 1 : 0) : existing.all_day,
+      location !== undefined ? location : existing.location,
+      eventId
+    );
+  if (attendeeIds) {
+    conn.prepare("DELETE FROM calendar_event_attendees WHERE event_id = ?").run(eventId);
+    const insertAttendee = conn.prepare("INSERT INTO calendar_event_attendees (event_id, user_id) VALUES (?,?)");
+    for (const uid of new Set([existing.created_by, ...attendeeIds])) insertAttendee.run(eventId, uid);
+  }
+  return findCalendarEventById(eventId);
+}
+
+function deleteCalendarEvent(eventId) {
+  conn.prepare("DELETE FROM calendar_event_attendees WHERE event_id = ?").run(eventId);
+  const result = conn.prepare("DELETE FROM calendar_events WHERE id = ?").run(eventId);
+  return result.changes > 0;
+}
+
 module.exports = {
   ROLES,
   MODULES,
@@ -2651,6 +2774,11 @@ module.exports = {
   toggleMailStar,
   deleteMail,
   unreadMailCount,
+  createCalendarEvent,
+  findCalendarEventById,
+  listCalendarEvents,
+  updateCalendarEvent,
+  deleteCalendarEvent,
   listChannelsForUser,
   findChannelById,
   findDmChannel,

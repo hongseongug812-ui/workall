@@ -20,6 +20,7 @@ const crmRoutes = require("./routes/crm");
 const financeRoutes = require("./routes/finance");
 const dashboardRoutes = require("./routes/dashboard");
 const mailRoutes = require("./routes/mail");
+const calendarRoutes = require("./routes/calendar");
 const { initSocket } = require("./socket");
 
 const PORT = process.env.PORT || 4000;
@@ -48,6 +49,7 @@ app.use("/api/crm", crmRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/mail", mailRoutes);
+app.use("/api/calendar", calendarRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "찾을 수 없는 경로입니다." }));
 

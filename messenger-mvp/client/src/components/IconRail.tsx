@@ -92,6 +92,13 @@ export default function IconRail({
             <span className="icon-rail-badge">{unreadMailCount > 9 ? "9+" : unreadMailCount}</span>
           )}
         </button>
+        <button
+          className={`icon-rail-button ${activeView === "calendar" ? "active" : ""}`}
+          title="캘린더"
+          onClick={() => onSelectView("calendar")}
+        >
+          <Icon name="calendar" size={20} />
+        </button>
         <button className="icon-rail-button" title="메시지 검색" onClick={onOpenSearch}>
           <Icon name="search" size={20} />
         </button>
